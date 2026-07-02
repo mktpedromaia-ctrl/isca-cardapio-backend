@@ -23,7 +23,7 @@ function buildPrompt(dadosProdutos) {
 Analise o cardápio deste restaurante com base nas imagens e no texto extraído abaixo. Forneça uma análise detalhada e profissional com dados de mercado.
 
 TEXTO EXTRAÍDO DO CARDÁPIO:
-${dadosProdutos.textoCompleto.slice(0, 6000)}
+${dadosProdutos.textoCompleto.slice(0, 20000)}
 ${fotoInfo}
 
 INSTRUÇÕES:
