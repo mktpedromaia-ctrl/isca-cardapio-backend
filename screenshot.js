@@ -83,7 +83,19 @@ async function fecharModais(page) {
   await new Promise(r => setTimeout(r, 600));
 }
 
-async function capturarCardapio(url) {
+// Hosts claramente internos (defesa em profundidade na interceptação de requests)
+function ehHostInternoLiteral(host) {
+  const h = (host || '').toLowerCase().replace(/^\[|\]$/g, '');
+  if (h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal')) return true;
+  if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h)) return true;
+  if (/^169\.254\./.test(h)) return true; // link-local + metadados cloud
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  if (h === '::1' || h === '::' || /^f[cd]/.test(h) || /^fe[89ab]/.test(h)) return true;
+  return false;
+}
+
+async function capturarCardapio(url, opts = {}) {
+  const { pinHost, pinIp } = opts;
   const launchOptions = {
     headless: true,
     args: [
@@ -98,6 +110,11 @@ async function capturarCardapio(url) {
     ]
   };
 
+  // Pina o host no IP público resolvido: fecha a janela de DNS rebinding na navegação
+  if (pinHost && pinIp) {
+    launchOptions.args.push(`--host-resolver-rules=MAP ${pinHost} ${pinIp}`);
+  }
+
   // Usa executablePath customizado se definido (ex: via env var)
   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
     launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
@@ -106,6 +123,23 @@ async function capturarCardapio(url) {
   const browser = await puppeteerExtra.launch(launchOptions);
 
   const page = await browser.newPage();
+
+  // Interceptação: bloqueia qualquer request (inclusive subrecursos/redirects) para host interno
+  try {
+    await page.setRequestInterception(true);
+    page.on('request', req => {
+      try {
+        const proto = new URL(req.url()).protocol;
+        const host = new URL(req.url()).hostname;
+        if (!['http:', 'https:', 'data:', 'blob:'].includes(proto) || ehHostInternoLiteral(host)) {
+          return req.abort();
+        }
+        return req.continue();
+      } catch (_) {
+        return req.continue();
+      }
+    });
+  } catch (_) { /* se interceptação falhar, o pinning + checagem no server já protegem */ }
 
   // Simula iPhone 14 Pro — a página renderiza exatamente como o usuário vê no celular
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
