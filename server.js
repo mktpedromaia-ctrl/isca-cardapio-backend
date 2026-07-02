@@ -13,6 +13,16 @@ const PORT = process.env.PORT || 3333;
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
+// IP real do cliente. Render fica atrás do Cloudflare, cujo IP de borda rotaciona;
+// CF-Connecting-IP traz o IP verdadeiro (o Cloudflare sobrescreve, o cliente não forja).
+function clientIp(req) {
+  const cf = req.headers['cf-connecting-ip'];
+  if (cf) return String(cf).trim();
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) return String(xff).split(',')[0].trim();
+  return req.ip || 'desconhecido';
+}
+
 // ---------- Headers de segurança ----------
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -95,7 +105,7 @@ app.post('/api/lead', async (req, res) => {
 });
 
 app.post('/api/analisar', async (req, res) => {
-  const ip = req.ip || req.connection?.remoteAddress || 'desconhecido';
+  const ip = clientIp(req);
   const { url, nome, whatsapp } = req.body || {};
 
   if (!url || typeof url !== 'string' || url.length > 2048) {
