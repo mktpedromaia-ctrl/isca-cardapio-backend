@@ -1,0 +1,6 @@
+node_modules/
+*.log
+
+# segredos — nunca commitar
+.env
+.env.local
