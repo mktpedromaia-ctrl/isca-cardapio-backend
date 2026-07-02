@@ -63,14 +63,9 @@ function calcularMetricas(dados) {
     faixaPreco = { menor: fmt(min), maior: fmt(max), medio: fmt(media) };
   }
 
-  // ORGANIZAÇÃO: nº de categorias e densidade média por categoria
+  // ORGANIZAÇÃO: calculada com o nº de categorias (refinado depois com o dado do LLM em mesclar)
   const nCat = (dados.categorias || []).length;
-  const porCat = nCat ? total / nCat : total;
-  let scoreOrg = 5;
-  if (nCat >= 2) scoreOrg += 2.5;
-  if (nCat >= 4) scoreOrg += 1;
-  if (porCat >= 3 && porCat <= 15) scoreOrg += 1.5;
-  scoreOrg = clamp10(scoreOrg);
+  const scoreOrg = scoreOrganizacao(nCat, total);
 
   return {
     total, comFoto, nCat,
@@ -79,6 +74,18 @@ function calcularMetricas(dados) {
     pctDesc: Math.round(pctDesc * 100),
     faixaPreco,
   };
+}
+
+// Score de organização (0-10) a partir do nº de categorias e densidade por categoria.
+// Contagem absurda (mais categorias que metade dos produtos) = ruído de extração → neutro.
+function scoreOrganizacao(nCat, total) {
+  if (total > 0 && nCat > total * 0.5) return 6; // contagem não confiável, nota neutra
+  const porCat = nCat ? total / nCat : total;
+  let s = 5;
+  if (nCat >= 2) s += 2.5;
+  if (nCat >= 4) s += 1;
+  if (porCat >= 3 && porCat <= 15) s += 1.5;
+  return clamp10(s);
 }
 
 function classificar(s) {
@@ -104,10 +111,17 @@ function scoreGeral(s) {
 function mesclar(llm, metricas, dados) {
   llm.scores = llm.scores || {};
 
+  // Categorias reais: o LLM enxerga as seções de verdade; a raspagem de HTML é ruidosa.
+  // Usa a lista do LLM quando for sã (2 a 25 categorias distintas), senão cai no dado raspado.
+  const catsLLM = Array.isArray(llm.categorias)
+    ? [...new Set(llm.categorias.map(c => String(c).trim()).filter(Boolean))]
+    : [];
+  const nCatFinal = (catsLLM.length >= 2 && catsLLM.length <= 25) ? catsLLM.length : metricas.nCat;
+
   // Determinísticos (fatos, sobrescrevem o que o LLM tenha chutado)
   llm.scores.fotos        = metricas.scoreFotos;
   llm.scores.precificacao = metricas.scorePreco;
-  llm.scores.organizacao  = metricas.scoreOrg;
+  llm.scores.organizacao  = scoreOrganizacao(nCatFinal, metricas.total);
 
   // Descrições: cobertura (determinístico, 60%) + apetite (LLM, 40%)
   const apetite = clamp10(llm.scores.descricoes_apetite != null ? llm.scores.descricoes_apetite : llm.scores.descricoes);
@@ -120,7 +134,8 @@ function mesclar(llm, metricas, dados) {
 
   // Contagens e faixa de preço = fato
   llm.total_produtos    = metricas.total;
-  llm.total_categorias  = metricas.nCat || llm.total_categorias || 0;
+  llm.total_categorias  = nCatFinal || 0;
+  if (catsLLM.length >= 2 && catsLLM.length <= 25) llm.categorias = catsLLM;
   llm.produtos_com_foto = metricas.comFoto;
   llm.produtos_sem_foto = metricas.total - metricas.comFoto;
   if (metricas.faixaPreco) llm.faixa_preco = metricas.faixaPreco;
@@ -148,13 +163,10 @@ function buildPrompt(dados, metricas) {
     .map((p, i) => `${i + 1}. ${p.nome}${p.preco ? ' | ' + p.preco : ''}${p.temFoto ? ' | tem foto' : ' | SEM foto'}${p.descricao ? ' | desc: "' + p.descricao + '"' : ' | SEM descrição'}`)
     .join('\n');
 
-  const catList = (dados.categorias || []).join(', ') || '(não detectadas)';
-
   return `Você é um especialista em engenharia de cardápios e estratégia de preços para restaurantes de delivery no Brasil.
 
 Já medimos por código os dados objetivos deste cardápio. NÃO recalcule nada abaixo, use como VERDADE:
 - Total de produtos: ${metricas.total}
-- Categorias (${metricas.nCat}): ${catList}
 - Produtos COM foto: ${metricas.comFoto} de ${metricas.total} (${metricas.pctFoto}%)
 - Produtos COM descrição: ${metricas.pctDesc}%
 - Faixa de preço: ${metricas.faixaPreco ? `${metricas.faixaPreco.menor} a ${metricas.faixaPreco.maior} (médio ${metricas.faixaPreco.medio})` : 'não detectada'}
@@ -187,7 +199,7 @@ Retorne APENAS JSON válido (sem markdown, sem texto fora do JSON) com esta estr
   "estabelecimento": "nome real do restaurante",
   "scores": { "nomes": 0, "descricoes_apetite": 0, "adicionais": 0 },
   "primeiras_impressoes": "2 a 3 frases sobre a impressão geral do cardápio",
-  "categorias": ${JSON.stringify((dados.categorias || []).slice(0, 20))},
+  "categorias": ["liste aqui as categorias/seções REAIS e distintas do cardápio, ex: Hambúrgueres, Combos, Acompanhamentos, Bebidas, Sobremesas"],
   "analise_produtos": [
     {
       "nome_atual": "nome exato do produto",
