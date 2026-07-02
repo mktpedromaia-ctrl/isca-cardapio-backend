@@ -226,8 +226,9 @@ Retorne APENAS JSON válido (sem markdown, sem texto fora do JSON) com esta estr
   "analise_organizacao": "análise textual da organização e categorias reais"
 }
 
-REGRAS:
-- Analise pelo menos 10 produtos reais na lista de analise_produtos, usando nomes e preços reais.
+REGRAS OBRIGATÓRIAS:
+- analise_produtos DEVE conter de 12 a 15 produtos (nunca menos que 12), escolhendo os mais representativos e de categorias diferentes. Isto é obrigatório: um relatório com poucos produtos é inaceitável.
+- Use nomes e preços reais exatamente como aparecem na lista de produtos.
 - Use conhecimento do mercado brasileiro para estimar preços de concorrência.
 - Nas análises textuais, cite os números reais informados acima (% com foto, faixa de preço etc.).
 - Seja específico, direto e sem enrolação.`;
