@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pling Company — Análise de Cardápio com IA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * { font-family: 'Sora', sans-serif; }
+    :root { --mint: #b8e8c4; --mint-dark: #4a9e64; --gray: #636363; }
+    body { background: #000; color: #fff; }
+    .btn-mint { background-color: var(--mint); color: #000; font-weight: 800; transition: all 0.2s; }
+    .btn-mint:hover { background-color: #cdf0d8; transform: translateY(-1px); }
+    .card-dark { background: #111; border: 1px solid #222; border-radius: 16px; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    .fade-up { animation: fadeUp 0.5s ease forwards; }
+    @keyframes marquee { from { transform: translate3d(0,0,0); } to { transform: translate3d(-50%,0,0); } }
+    .marquee-track { display: flex; width: max-content; animation: marquee 20s linear infinite; will-change: transform; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .logos-track { display: flex; width: max-content; animation: marquee 22s linear infinite; will-change: transform; backface-visibility: hidden; -webkit-backface-visibility: hidden; transform: translateZ(0); -webkit-transform: translateZ(0); }
+    .logos-outer { -webkit-transform: translateZ(0); transform: translateZ(0); isolation: isolate; }
+    .marquee-track:hover { animation-play-state: paused; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(0.8); } }
+    .spinner { animation: spin 1s linear infinite; }
+    .progress-bar { transition: width 0.3s ease; }
+    .blur-content { filter: blur(5px); user-select: none; pointer-events: none; }
+    .gradient-text { background: linear-gradient(90deg, #fff 0%, var(--mint) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .video-wrapper { position: relative; padding-bottom: 56.25%; height: 0; border-radius: 24px; overflow: hidden; }
+    .video-wrapper iframe { position: absolute; top:0; left:0; width:100%; height:100%; border:0; }
+    input { background: #111 !important; color: #fff !important; }
+    input::placeholder { color: #555 !important; }
+    input:focus { border-color: var(--mint) !important; outline: none; }
+  </style>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="tela-landing">
+
+  <!-- HEADER -->
+  <header class="px-5 py-4 md:px-10 md:py-5 max-w-5xl mx-auto flex items-center justify-between">
+    <img src="logo-pling.png" alt="Pling Company" class="h-12 md:h-14 w-auto" />
+    <a href="#analisar" class="btn-mint px-4 py-2 md:px-6 md:py-3 rounded-full text-sm font-bold">Analisar grátis</a>
+  </header>
+
+  <!-- HEADLINE -->
+  <section class="px-5 pt-10 pb-6 md:pt-16 md:pb-8 text-center max-w-2xl mx-auto fade-up">
+    <h1 class="text-3xl md:text-5xl font-black leading-tight mb-3 md:mb-5">
+      Seu cardápio está te fazendo<br/><span style="color:var(--mint)">perder dinheiro todo dia</span><br/><span style="color:#555">e você nem sabe.</span>
+    </h1>
+    <p class="text-sm md:text-lg" style="color: #666">A IA analisa seu cardápio e mostra exatamente onde estão as perdas.</p>
+  </section>
+
+  <!-- VIDEO -->
+  <section class="px-4 md:px-10 pb-10 md:pb-14 max-w-4xl mx-auto">
+    <div class="video-wrapper" style="box-shadow: 0 0 60px rgba(184,232,196,0.12)">
+      <iframe id="vid-main" src="https://www.youtube.com/embed/NOc8oHmTEPI?autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1"
+        title="A importância de um cardápio bem feito"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen></iframe>
+      <div id="vid-main-overlay" onclick="ativarSom('vid-main','NOc8oHmTEPI')" style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);cursor:pointer;z-index:10">
+        <div style="background:rgba(0,0,0,0.75);border:1px solid rgba(184,232,196,0.4);color:var(--mint);font-size:13px;font-weight:700;padding:8px 20px;border-radius:999px;white-space:nowrap;backdrop-filter:blur(6px)">
+          Ativar som
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA 1 -->
+  <div class="px-5 pb-12 text-center">
+    <a href="#analisar" class="btn-mint inline-block px-8 py-4 rounded-2xl font-bold text-sm">Analisar meu cardápio grátis</a>
+    <p class="text-xs mt-3" style="color:#444">100% gratuito · resultado em ~30 segundos</p>
+  </div>
+
+  <!-- FAIXA MARQUEE -->
+  <div class="overflow-hidden py-2.5 mb-8" style="background: var(--mint)">
+    <div class="marquee-track">
+      <span class="text-sm font-black whitespace-nowrap px-6 uppercase tracking-wide" style="color:#000">Para deliverys que faturam menos de R$ 10k/mês</span>
+      <span class="text-sm font-black whitespace-nowrap px-3" style="color:#4a9e64">★</span>
+      <span class="text-sm font-black whitespace-nowrap px-6 uppercase tracking-wide" style="color:#000">Para quem quer crescer sem depender de anúncio</span>
+      <span class="text-sm font-black whitespace-nowrap px-3" style="color:#4a9e64">★</span>
+      <span class="text-sm font-black whitespace-nowrap px-6 uppercase tracking-wide" style="color:#000">Para quem sente que o cardápio não converte</span>
+      <span class="text-sm font-black whitespace-nowrap px-3" style="color:#4a9e64">★</span>
+      <span class="text-sm font-black whitespace-nowrap px-6 uppercase tracking-wide" style="color:#000">Para deliverys que querem dobrar o faturamento</span>
+      <span class="text-sm font-black whitespace-nowrap px-3" style="color:#4a9e64">★</span>
+      <span class="text-sm font-black whitespace-nowrap px-6 uppercase tracking-wide" style="color:#000">Para quem quer se destacar da concorrência</span>
+      <span class="text-sm font-black whitespace-nowrap px-3" style="color:#4a9e64">★</span>
+      <!-- duplicado para loop contínuo -->
+      <span class="text-sm font-black whitespace-nowrap px-6 uppercase tracking-wide" style="color:#000">Para deliverys que faturam menos de R$ 10k/mês</span>
+      <span class="text-sm font-black whitespace-nowrap px-3" style="color:#4a9e64">★</span>
+      <span class="text-sm font-black whitespace-nowrap px-6 uppercase tracking-wide" style="color:#000">Para quem quer crescer sem depender de anúncio</span>
+      <span class="text-sm font-black whitespace-nowrap px-3" style="color:#4a9e64">★</span>
+      <span class="text-sm font-black whitespace-nowrap px-6 uppercase tracking-wide" style="color:#000">Para quem sente que o cardápio não converte</span>
+      <span class="text-sm font-black whitespace-nowrap px-3" style="color:#4a9e64">★</span>
+      <span class="text-sm font-black whitespace-nowrap px-6 uppercase tracking-wide" style="color:#000">Para deliverys que querem dobrar o faturamento</span>
+      <span class="text-sm font-black whitespace-nowrap px-3" style="color:#4a9e64">★</span>
+      <span class="text-sm font-black whitespace-nowrap px-6 uppercase tracking-wide" style="color:#000">Para quem quer se destacar da concorrência</span>
+      <span class="text-sm font-black whitespace-nowrap px-3" style="color:#4a9e64">★</span>
+    </div>
+  </div>
+
+  <!-- FORMULÁRIO -->
+  <section id="analisar" class="px-5 pb-20 max-w-lg mx-auto">
+    <h2 class="text-xl md:text-2xl font-black mb-1 text-center">Analise seu cardápio agora</h2>
+    <p class="text-sm mb-6 text-center" style="color: #666">Cole o link e descubra o que está travando suas vendas.</p>
+
+    <div class="card-dark p-5 md:p-7">
+      <label class="block text-sm font-semibold mb-2" style="color: #aaa">Link do seu cardápio</label>
+      <input id="input-url" type="url" placeholder="https://seu-cardapio.com.br"
+        class="w-full px-4 py-4 border-2 rounded-xl text-base transition-colors mb-3" style="border-color: #333" />
+      <button onclick="irParaCaptura()" class="btn-mint w-full py-4 rounded-xl text-base font-bold">
+        Analisar meu cardápio grátis
+      </button>
+      <p class="text-xs text-center mt-3" style="color: #444">Gratuito · Resultado em ~30 segundos</p>
+    </div>
+  </section>
+
+  <!-- PLATAFORMAS -->
+  <section class="pb-16">
+    <p class="text-xs font-semibold uppercase tracking-widest text-center mb-6" style="color:#444">Analisamos cardápios de todas as plataformas</p>
+    <div class="logos-outer overflow-hidden" style="mask-image:linear-gradient(to right,transparent,black 15%,black 85%,transparent);-webkit-mask-image:linear-gradient(to right,transparent,black 15%,black 85%,transparent)">
+      <div class="logos-track flex items-center gap-8">
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-cardapio-web.webp" alt="Cardápio Web" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-anota-ai.webp" alt="Anota AI" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-instadelivery.png" alt="InstaDelivery" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-goomer.png" alt="Goomer" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-delivery-direto.png" alt="Delivery Direto" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-plug-delivery.webp" alt="Plug Delivery" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-neemo.jpg" alt="Neemo" class="max-h-12 w-auto object-contain" /></div>
+        <!-- duplicado para loop contínuo -->
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-cardapio-web.webp" alt="Cardápio Web" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-anota-ai.webp" alt="Anota AI" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-instadelivery.png" alt="InstaDelivery" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-goomer.png" alt="Goomer" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-delivery-direto.png" alt="Delivery Direto" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-plug-delivery.webp" alt="Plug Delivery" class="max-h-12 w-auto object-contain" /></div>
+        <div class="flex items-center justify-center rounded-xl px-5 flex-none" style="background:#111;height:80px"><img src="logo-neemo.jpg" alt="Neemo" class="max-h-12 w-auto object-contain" /></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CARROSSEL EDUCATIVO -->
+  <section class="pb-16">
+    <div class="px-5 mb-6 max-w-3xl mx-auto">
+      <p class="text-sm font-semibold uppercase tracking-widest mb-2" style="color:var(--mint)">Engenharia de cardápio</p>
+      <h2 class="text-2xl md:text-3xl font-black">O que separa um cardápio comum<br/>de um cardápio que vende.</h2>
+    </div>
+
+    <div id="carousel" class="flex gap-3 overflow-x-auto pb-4 px-5" style="scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+      <div class="flex-none rounded-2xl overflow-hidden" style="width:78vw;max-width:340px;scroll-snap-align:start">
+        <img src="card6.jpg" class="w-full h-auto block" style="border-radius:16px"/>
+      </div>
+      <div class="flex-none rounded-2xl overflow-hidden" style="width:78vw;max-width:340px;scroll-snap-align:start">
+        <img src="card1.jpg" class="w-full h-auto block" style="border-radius:16px"/>
+      </div>
+      <div class="flex-none rounded-2xl overflow-hidden" style="width:78vw;max-width:340px;scroll-snap-align:start">
+        <img src="card2.jpg" class="w-full h-auto block" style="border-radius:16px"/>
+      </div>
+      <div class="flex-none rounded-2xl overflow-hidden" style="width:78vw;max-width:340px;scroll-snap-align:start">
+        <img src="card3.jpg" class="w-full h-auto block" style="border-radius:16px"/>
+      </div>
+      <div class="flex-none rounded-2xl overflow-hidden" style="width:78vw;max-width:340px;scroll-snap-align:start">
+        <img src="card4.jpg" class="w-full h-auto block" style="border-radius:16px"/>
+      </div>
+      <div class="flex-none rounded-2xl overflow-hidden" style="width:78vw;max-width:340px;scroll-snap-align:start">
+        <img src="card5.jpg" class="w-full h-auto block" style="border-radius:16px"/>
+      </div>
+    </div>
+
+    <!-- Dots -->
+    <div class="flex justify-center gap-2 mt-4" id="dots">
+      <div class="dot-indicator" style="width:20px;height:4px;border-radius:2px;background:var(--mint)"></div>
+      <div class="dot-indicator" style="width:6px;height:4px;border-radius:2px;background:#333"></div>
+      <div class="dot-indicator" style="width:6px;height:4px;border-radius:2px;background:#333"></div>
+      <div class="dot-indicator" style="width:6px;height:4px;border-radius:2px;background:#333"></div>
+      <div class="dot-indicator" style="width:6px;height:4px;border-radius:2px;background:#333"></div>
+      <div class="dot-indicator" style="width:6px;height:4px;border-radius:2px;background:#333"></div>
+    </div>
+  </section>
+
+
+  <!-- DEPOIMENTO -->
+  <section class="px-5 pb-20 max-w-lg mx-auto text-center">
+    <p class="text-xs font-semibold uppercase tracking-widest mb-4" style="color:var(--mint)">Resultado real de cliente</p>
+    <h2 class="text-3xl md:text-4xl font-black mb-2 leading-tight">De R$8k para<br/><span style="color:var(--mint)">R$116k por mês.</span></h2>
+    <p class="text-sm mb-8" style="color:#555">O cardápio certo muda tudo. Veja o relato.</p>
+    <div class="mx-auto overflow-hidden" style="width:240px;aspect-ratio:9/16;position:relative;border-radius:24px">
+      <iframe id="vid-dep"
+        src="https://www.youtube.com/embed/HPUH3m9XKCY?autoplay=1&mute=1&controls=0&playsinline=1&modestbranding=1"
+        title="De R$8k para R$116k por mês"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+        style="position:absolute;top:0;left:0;width:100%;height:100%;border:0">
+      </iframe>
+      <div id="vid-dep-overlay" onclick="ativarSom('vid-dep','HPUH3m9XKCY')" style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);cursor:pointer;z-index:10">
+        <div style="background:rgba(0,0,0,0.75);border:1px solid rgba(184,232,196,0.4);color:var(--mint);font-size:13px;font-weight:700;padding:8px 20px;border-radius:999px;white-space:nowrap;backdrop-filter:blur(6px)">
+          Ativar som
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA 3 -->
+  <div class="px-5 pb-16 max-w-lg mx-auto">
+    <div class="rounded-3xl p-7 text-center" style="background:linear-gradient(135deg,#0d1f12 0%,#0a0a0a 100%);border:1px solid #1e3a28">
+      <p class="text-2xl font-black mb-1">Resultado como esse<br/>pode ser o seu.</p>
+      <p class="text-sm mb-6" style="color:#555">Comece pela análise gratuita do seu cardápio.</p>
+      <a href="#analisar" class="btn-mint block w-full py-4 rounded-2xl font-bold">Quero resultados como esses</a>
+      <p class="text-xs mt-3" style="color:#444">Gratuito · Sem cadastro · Resultado em 30s</p>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <section class="px-5 pb-20 max-w-lg mx-auto">
+    <h2 class="text-2xl font-black text-center mb-8">Perguntas frequentes</h2>
+    <div class="space-y-3" id="faq">
+
+      <div class="faq-item rounded-2xl overflow-hidden" style="border:1px solid #222">
+        <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-sm" style="background:#111">
+          <span>Como funciona a análise?</span>
+          <span class="faq-icon text-lg" style="color:var(--mint)">+</span>
+        </button>
+        <div class="faq-body hidden px-5 pb-4 pt-1 text-sm leading-relaxed" style="color:#888">
+          Você cola o link do seu cardápio digital, nossa IA captura uma imagem completa e analisa estrutura, preços, descrições e oportunidades de melhoria. O resultado chega em menos de 30 segundos.
+        </div>
+      </div>
+
+      <div class="faq-item rounded-2xl overflow-hidden" style="border:1px solid #222">
+        <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-sm" style="background:#111">
+          <span>É gratuito?</span>
+          <span class="faq-icon text-lg" style="color:var(--mint)">+</span>
+        </button>
+        <div class="faq-body hidden px-5 pb-4 pt-1 text-sm leading-relaxed" style="color:#888">
+          Sim, 100% gratuito. Não precisa de cartão de crédito nem cadastro para receber seu diagnóstico.
+        </div>
+      </div>
+
+      <div class="faq-item rounded-2xl overflow-hidden" style="border:1px solid #222">
+        <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-sm" style="background:#111">
+          <span>Quais plataformas são compatíveis?</span>
+          <span class="faq-icon text-lg" style="color:var(--mint)">+</span>
+        </button>
+        <div class="faq-body hidden px-5 pb-4 pt-1 text-sm leading-relaxed" style="color:#888">
+          Cardápio Web, Anota AI, InstaDelivery, Goomer, Delivery Direto, Plug Delivery, Neemo e outras plataformas com link público. O iFood ainda não é suportado.
+        </div>
+      </div>
+
+      <div class="faq-item rounded-2xl overflow-hidden" style="border:1px solid #222">
+        <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-sm" style="background:#111">
+          <span>O que aparece no relatório?</span>
+          <span class="faq-icon text-lg" style="color:var(--mint)">+</span>
+        </button>
+        <div class="faq-body hidden px-5 pb-4 pt-1 text-sm leading-relaxed" style="color:#888">
+          Uma nota geral do seu cardápio, pontos fortes, o que está travando suas vendas e sugestões práticas de melhoria — tudo com base em engenharia de cardápio e análise de IA.
+        </div>
+      </div>
+
+      <div class="faq-item rounded-2xl overflow-hidden" style="border:1px solid #222">
+        <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-sm" style="background:#111">
+          <span>Meus dados ficam seguros?</span>
+          <span class="faq-icon text-lg" style="color:var(--mint)">+</span>
+        </button>
+        <div class="faq-body hidden px-5 pb-4 pt-1 text-sm leading-relaxed" style="color:#888">
+          Sim. Só acessamos o link público do seu cardápio, o mesmo que qualquer cliente veria. Não solicitamos senha, acesso ao sistema ou dados financeiros.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="px-6 pt-12 pb-10" style="border-top: 1px solid #111">
+    <div class="max-w-lg mx-auto text-center">
+      <img src="logo-pling.png" alt="Pling Company" class="h-10 w-auto mx-auto mb-4" />
+      <p class="text-sm mb-6 leading-relaxed" style="color:#444">Ajudamos restaurantes de delivery a crescerem com estratégia, dados e tecnologia.</p>
+
+      <a href="https://www.instagram.com/plingcompany/" target="_blank" rel="noopener"
+        class="inline-flex items-center gap-2 px-5 py-3 rounded-full font-semibold text-sm transition-opacity hover:opacity-80"
+        style="background:#111;border:1px solid #222;color:#fff">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+        </svg>
+        @plingcompany
+      </a>
+
+      <p class="text-xs mt-8" style="color:#222">© 2025 Pling Company · Todos os direitos reservados</p>
+    </div>
+  </footer>
+
+</div>
+
+
+<!-- CAPTURA DE LEAD -->
+<div id="tela-captura" class="hidden min-h-screen flex flex-col justify-center px-5 py-10">
+  <div class="card-dark p-6 w-full fade-up" style="max-width:420px;margin:0 auto">
+    <img src="logo-pling.png" alt="Pling Company" class="h-7 mx-auto mb-5 opacity-70" />
+    <h2 class="text-xl font-bold mb-1 text-center">Quase lá!</h2>
+    <p class="text-sm mb-5 text-center" style="color:#666">Preencha para receber sua análise</p>
+
+    <div class="space-y-2.5">
+      <!-- Nome -->
+      <div>
+        <input id="input-nome" type="text" placeholder="Seu nome"
+          class="w-full px-4 py-3 rounded-xl text-sm transition-colors" style="background:#1a1a1a;border:1px solid #2a2a2a;color:#fff" />
+        <p id="err-nome" class="text-xs mt-1 hidden" style="color:#f87171"></p>
+      </div>
+
+      <!-- Email -->
+      <div>
+        <input id="input-email" type="email" placeholder="Seu melhor e-mail"
+          class="w-full px-4 py-3 rounded-xl text-sm transition-colors" style="background:#1a1a1a;border:1px solid #2a2a2a;color:#fff" />
+        <p id="err-email" class="text-xs mt-1 hidden" style="color:#f87171"></p>
+      </div>
+
+      <!-- Telefone -->
+      <div>
+        <div class="flex gap-2">
+          <select id="input-country" class="px-3 py-3 rounded-xl text-sm cursor-pointer shrink-0" style="background:#1a1a1a;border:1px solid #2a2a2a;color:#fff">
+            <option value="+55">🇧🇷 +55</option>
+            <option value="+1">🇺🇸 +1</option>
+            <option value="+351">🇵🇹 +351</option>
+            <option value="+34">🇪🇸 +34</option>
+          </select>
+          <input id="input-telefone" type="tel" placeholder="(00) 00000-0000" inputmode="numeric"
+            class="w-full px-4 py-3 rounded-xl text-sm transition-colors" style="background:#1a1a1a;border:1px solid #2a2a2a;color:#fff" />
+        </div>
+        <p id="err-telefone" class="text-xs mt-1 hidden" style="color:#f87171"></p>
+      </div>
+
+      <!-- Empresa -->
+      <div>
+        <input id="input-empresa" type="text" placeholder="Nome do restaurante"
+          class="w-full px-4 py-3 rounded-xl text-sm transition-colors" style="background:#1a1a1a;border:1px solid #2a2a2a;color:#fff" />
+        <p id="err-empresa" class="text-xs mt-1 hidden" style="color:#f87171"></p>
+      </div>
+
+      <!-- Segmento -->
+      <div>
+        <select id="input-segmento" class="w-full px-4 py-3 rounded-xl text-sm cursor-pointer" style="background:#1a1a1a;border:1px solid #2a2a2a;color:#fff">
+          <option value="">Selecionar segmento</option>
+          <option>Pizzaria</option>
+          <option>Hamburgueria</option>
+          <option>Churrascaria</option>
+          <option>Japonês / Asiático</option>
+          <option>Italiano / Massas</option>
+          <option>Pastelaria</option>
+          <option>Comida Brasileira</option>
+          <option>Outro</option>
+        </select>
+        <p id="err-segmento" class="text-xs mt-1 hidden" style="color:#f87171"></p>
+      </div>
+
+      <!-- Faturamento -->
+      <div>
+        <select id="input-faturamento" class="w-full px-4 py-3 rounded-xl text-sm cursor-pointer" style="background:#1a1a1a;border:1px solid #2a2a2a;color:#fff">
+          <option value="">Faturamento mensal do restaurante</option>
+          <option>Menos de R$ 20k</option>
+          <option>R$ 20k – R$ 40k</option>
+          <option>R$ 40k – R$ 60k</option>
+          <option>R$ 60k – R$ 80k</option>
+          <option>R$ 80k – R$ 100k</option>
+          <option>R$ 100k – R$ 200k</option>
+          <option>R$ 200k – R$ 500k</option>
+          <option>Mais de R$ 500k</option>
+        </select>
+        <p id="err-faturamento" class="text-xs mt-1 hidden" style="color:#f87171"></p>
+      </div>
+    </div>
+
+    <button onclick="iniciarAnalise()" class="btn-mint w-full mt-4 py-4 rounded-xl text-base font-bold">
+      Analisar meu cardápio
+    </button>
+    <p class="text-xs text-center mt-3" style="color:#444">Seus dados são confidenciais e usados apenas para contato</p>
+  </div>
+</div>
+
+
+<!-- LOADING -->
+<div id="tela-loading" class="hidden min-h-screen flex flex-col justify-center px-6 py-12" style="max-width:420px;margin:0 auto">
+  <p class="text-xs uppercase tracking-widest mb-1" style="color:var(--mint)">Análise em andamento</p>
+  <h2 class="text-xl font-black mb-8">Seu cardápio está sendo<br>radiografado agora</h2>
+
+  <div id="pipeline-steps" class="space-y-3">
+    <!-- Steps gerados por JS -->
+  </div>
+
+  <div class="mt-8 rounded-full overflow-hidden" style="background:#1a1a1a;height:3px">
+    <div id="progress-bar" class="h-full rounded-full progress-bar" style="width:0%;background:var(--mint)"></div>
+  </div>
+  <p class="text-xs mt-2" style="color:#333" id="progress-percent">Iniciando...</p>
+</div>
+
+
+<!-- RELATÓRIO -->
+<div id="tela-relatorio" class="hidden min-h-screen" style="background:#fff;color:#111">
+  <header class="px-6 py-4 sticky top-0 z-10" style="background:#fff;border-bottom:1px solid #e5e5e5">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <img src="logo-pling.png" alt="Pling Company" class="h-7 w-auto" style="filter:invert(1)" />
+      <button onclick="novaAnalise()" class="text-sm font-medium hover:opacity-70 transition-opacity" style="color:var(--mint-dark)">
+        Nova análise
+      </button>
+    </div>
+  </header>
+  <div class="max-w-4xl mx-auto px-6 py-8 space-y-5" id="conteudo-relatorio"></div>
+</div>
+
+
+<script>
+  function ativarSom(iframeId, videoId) {
+    const iframe = document.getElementById(iframeId);
+    const overlay = document.getElementById(iframeId + '-overlay');
+    iframe.src = 'https://www.youtube.com/embed/' + videoId + '?autoplay=1&mute=0&controls=1&playsinline=1&modestbranding=1';
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function toggleFaq(btn) {
+    const body = btn.nextElementSibling;
+    const icon = btn.querySelector('.faq-icon');
+    const isOpen = !body.classList.contains('hidden');
+    // fecha todos
+    document.querySelectorAll('.faq-body').forEach(b => b.classList.add('hidden'));
+    document.querySelectorAll('.faq-icon').forEach(i => i.textContent = '+');
+    // abre o clicado se estava fechado
+    if (!isOpen) {
+      body.classList.remove('hidden');
+      icon.textContent = '−';
+    }
+  }
+
+  // Carrossel infinito
+  const carousel = document.getElementById('carousel');
+  if (carousel) {
+    const origCards = [...carousel.querySelectorAll('.flex-none')];
+    const totalOriginal = origCards.length;
+
+    origCards.forEach(card => carousel.appendChild(card.cloneNode(true)));
+
+    let current = 0;
+    let isUserScrolling = false;
+    let userScrollTimeout;
+    let jumping = false;
+
+    function scrollToCard(idx, instant) {
+      const cards = carousel.querySelectorAll('.flex-none');
+      const card = cards[idx];
+      if (card) carousel.scrollTo({ left: card.offsetLeft - 20, behavior: instant ? 'instant' : 'smooth' });
+    }
+
+    function updateDots(realIdx) {
+      document.querySelectorAll('.dot-indicator').forEach((d, i) => {
+        d.style.width = i === realIdx ? '20px' : '6px';
+        d.style.background = i === realIdx ? 'var(--mint)' : '#333';
+      });
+    }
+
+    setInterval(() => {
+      if (isUserScrolling || jumping) return;
+      current++;
+      scrollToCard(current);
+      updateDots(current % totalOriginal);
+      if (current >= totalOriginal) {
+        jumping = true;
+        setTimeout(() => {
+          current = current % totalOriginal;
+          scrollToCard(current, true);
+          jumping = false;
+        }, 650);
+      }
+    }, 2800);
+
+    carousel.addEventListener('touchstart', () => { isUserScrolling = true; clearTimeout(userScrollTimeout); });
+    carousel.addEventListener('touchend', () => { userScrollTimeout = setTimeout(() => { isUserScrolling = false; }, 4000); });
+
+    carousel.addEventListener('scroll', () => {
+      if (jumping) return;
+      const cards = [...carousel.querySelectorAll('.flex-none')];
+      let closestIdx = 0, minDist = Infinity;
+      cards.forEach((card, i) => {
+        const dist = Math.abs(card.offsetLeft - 20 - carousel.scrollLeft);
+        if (dist < minDist) { minDist = dist; closestIdx = i; }
+      });
+      current = closestIdx;
+      updateDots(closestIdx % totalOriginal);
+    });
+
+    // Sempre inicia no card 0 ao entrar na tela
+    new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        current = 0;
+        scrollToCard(0, true);
+        updateDots(0);
+      }
+    }, { threshold: 0.3 }).observe(carousel.closest('section'));
+  }
+
+  const API_URL = window.location.hostname === 'localhost' || window.location.hostname.startsWith('172.')
+    ? 'http://localhost:3333'
+    : 'https://isca-cardapio-backend.onrender.com';
+  let urlCardapio = '';
+  let dadosLead = {};
+
+  function irParaCaptura() {
+    const url = document.getElementById('input-url').value.trim();
+    if (!url || !url.startsWith('http')) { alert('Cole uma URL válida'); return; }
+    urlCardapio = url;
+    mostrarTela('tela-captura');
+  }
+
+  function maskPhone(value, country) {
+    if (country !== '+55') return value.replace(/\D/g, '').slice(0, 15);
+    const d = value.replace(/\D/g, '').slice(0, 11);
+    if (d.length > 10) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+    if (d.length > 6)  return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+    if (d.length > 2)  return `(${d.slice(0,2)}) ${d.slice(2)}`;
+    if (d.length > 0)  return `(${d}`;
+    return '';
+  }
+
+  document.getElementById('input-telefone')?.addEventListener('input', function() {
+    const country = document.getElementById('input-country').value;
+    this.value = maskPhone(this.value, country);
+  });
+
+  function showErr(id, msg) {
+    const el = document.getElementById('err-' + id);
+    if (!el) return;
+    if (msg) { el.textContent = msg; el.classList.remove('hidden'); }
+    else { el.classList.add('hidden'); }
+  }
+
+  async function iniciarAnalise() {
+    const nome       = document.getElementById('input-nome').value.trim();
+    const email      = document.getElementById('input-email').value.trim();
+    const country    = document.getElementById('input-country').value;
+    const telefone   = document.getElementById('input-telefone').value.trim();
+    const empresa    = document.getElementById('input-empresa').value.trim();
+    const segmento   = document.getElementById('input-segmento').value;
+    const faturamento = document.getElementById('input-faturamento').value;
+
+    let ok = true;
+    showErr('nome',       nome.length < 2    ? 'Digite seu nome' : null);
+    showErr('email',      !email.includes('@') ? 'E-mail inválido' : null);
+    const digits = telefone.replace(/\D/g, '');
+    const phoneOk = country === '+55' ? digits.length === 11 : digits.length >= 8;
+    showErr('telefone',   !phoneOk            ? 'Telefone incompleto' : null);
+    showErr('empresa',    empresa.length < 2  ? 'Digite o nome do restaurante' : null);
+    showErr('segmento',   !segmento           ? 'Selecione o segmento' : null);
+    showErr('faturamento',!faturamento        ? 'Selecione o faturamento' : null);
+    if (nome.length < 2 || !email.includes('@') || !phoneOk || empresa.length < 2 || !segmento || !faturamento) return;
+
+    // Guarda dados do lead para usar no CTA
+    dadosLead = { nome, email, telefone: `${country} ${telefone}`, empresa, segmento, faturamento };
+
+    // Envia lead ao CRM (fire and forget)
+    fetch('/api/lead', {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...dadosLead, urlCardapio }),
+    }).catch(() => {});
+
+    mostrarTela('tela-loading');
+    iniciarProgress();
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 240000);
+    try {
+      const res = await fetch(`${API_URL}/api/analisar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: urlCardapio, nome, whatsapp: `${country} ${telefone}` }),
+        signal: controller.signal,
+      });
+      clearTimeout(fetchTimeout);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      mostrarRelatorio(data.analise, data.screenshotFull || '');
+    } catch (err) {
+      clearTimeout(fetchTimeout);
+      const msg = err.name === 'AbortError'
+        ? 'A análise demorou demais. O servidor pode estar iniciando, aguarde 30 segundos e tente novamente.'
+        : 'Erro ao analisar: ' + err.message;
+      alert(msg);
+      mostrarTela('tela-landing');
+    }
+  }
+
+  function iniciarProgress() {
+    const steps = [
+      { label: 'Abrindo o cardápio',       sub: 'Acessando a plataforma de delivery',           dur: 15  },
+      { label: 'Capturando os produtos',    sub: 'Fotografando preços, fotos e descrições',      dur: 35 },
+      { label: 'Lendo o cardápio',          sub: 'Extraindo texto, categorias e estrutura',      dur: 20 },
+      { label: 'Analisando com IA',         sub: 'Llama 4 vasculhando cada detalhe do cardápio', dur: 80 },
+      { label: 'Comparando concorrência',   sub: 'Cruzando com dados do mercado brasileiro',     dur: 25 },
+      { label: 'Gerando o diagnóstico',     sub: 'Montando sua análise personalizada',           dur: 25 },
+    ];
+
+    const container = document.getElementById('pipeline-steps');
+    container.innerHTML = steps.map((s, i) => `
+      <div id="step-${i}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;background:#0d0d0d;border:1px solid #1a1a1a;transition:all 0.3s">
+        <div id="step-icon-${i}" style="width:32px;height:32px;border-radius:50%;background:#111;border:1.5px solid #222;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;transition:all 0.3s">
+          <span style="color:#333">${i + 1}</span>
+        </div>
+        <div style="flex:1;min-width:0">
+          <p id="step-label-${i}" style="font-size:13px;font-weight:700;color:#444;transition:color 0.3s">${s.label}</p>
+          <p style="font-size:11px;color:#2a2a2a;margin-top:2px;transition:color 0.3s" id="step-sub-${i}">${s.sub}</p>
+        </div>
+      </div>
+    `).join('');
+
+    let prog = 0;
+    let currentStep = 0;
+    const totalDur = steps.reduce((a, s) => a + s.dur, 0);
+    let stepElapsed = 0;
+
+    function ativarStep(i) {
+      const el = document.getElementById('step-' + i);
+      const icon = document.getElementById('step-icon-' + i);
+      const label = document.getElementById('step-label-' + i);
+      const sub = document.getElementById('step-sub-' + i);
+      if (!el) return;
+      el.style.background = '#0d1f12';
+      el.style.borderColor = '#1e3a28';
+      icon.style.background = '#1a4a25';
+      icon.style.borderColor = 'var(--mint)';
+      icon.innerHTML = '<div style="width:10px;height:10px;border-radius:50%;background:var(--mint);animation:pulse 1s infinite"></div>';
+      label.style.color = '#fff';
+      sub.style.color = '#4a9e64';
+    }
+
+    window._concluirStep = function concluirStep(i) {
+      const el = document.getElementById('step-' + i);
+      const icon = document.getElementById('step-icon-' + i);
+      const label = document.getElementById('step-label-' + i);
+      const sub = document.getElementById('step-sub-' + i);
+      if (!el) return;
+      el.style.background = '#081a0e';
+      el.style.borderColor = '#1a4a25';
+      icon.style.background = '#0d3a1a';
+      icon.style.borderColor = '#34d399';
+      icon.innerHTML = '<span style="color:#34d399;font-size:14px">✓</span>';
+      label.style.color = '#34d399';
+      sub.style.color = '#1a4a25';
+    }
+
+    ativarStep(0);
+
+    const t1 = setInterval(() => {
+      prog += 100 / (totalDur * 2);
+      if (prog > 97) prog = 97;
+      document.getElementById('progress-bar').style.width = prog + '%';
+      document.getElementById('progress-percent').textContent = Math.floor(prog) + '% concluído';
+
+      stepElapsed += 0.5;
+      if (stepElapsed >= steps[currentStep].dur && currentStep < steps.length - 1) {
+        window._concluirStep(currentStep);
+        currentStep++;
+        stepElapsed = 0;
+        ativarStep(currentStep);
+      }
+    }, 500);
+
+    window._intervals = [t1];
+  }
+
+  function mostrarRelatorio(analise, screenshotFull) {
+    if (window._intervals) window._intervals.forEach(clearInterval);
+    document.getElementById('progress-bar').style.width = '100%';
+    document.getElementById('progress-percent').textContent = '100% concluído';
+    for (let i = 0; i < 6; i++) { try { window._concluirStep(i); } catch(_) {} }
+
+    const cor  = (s) => s >= 70 ? '#34d399' : s >= 50 ? '#fbbf24' : '#f87171';
+    const cor10 = (s) => s >= 7 ? '#34d399' : s >= 5 ? '#fbbf24' : '#f87171';
+    const bg   = (s) => s >= 7 ? '#e8f5ec' : s >= 5 ? '#fffbeb' : '#fef2f2';
+    const bd   = (s) => s >= 7 ? '#b8e8c4' : s >= 5 ? '#fde68a' : '#fecaca';
+    const posTag = (p) => {
+      if (!p) return '';
+      if (p.includes('Abaixo')) return `<span style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;font-size:10px;padding:2px 8px;border-radius:999px">${p}</span>`;
+      if (p.includes('Acima')) return `<span style="background:#e8f5ec;border:1px solid #b8e8c4;color:#16a34a;font-size:10px;padding:2px 8px;border-radius:999px">${p}</span>`;
+      return `<span style="background:#fffbeb;border:1px solid #fde68a;color:#d97706;font-size:10px;padding:2px 8px;border-radius:999px">${p}</span>`;
+    };
+    const { organizacao, descricoes, precificacao, fotos, nomes, adicionais } = analise.scores;
+    const pctFoto = analise.total_produtos > 0 ? Math.round((analise.produtos_com_foto / analise.total_produtos) * 100) : 0;
+    const deg = analise.score_geral * 3.6;
+    const produtos = analise.analise_produtos || [];
+
+    const html = `
+      <!-- Cabeçalho -->
+      <div class="fade-up pb-2" style="border-bottom:2px solid #111">
+        <p class="text-xs uppercase tracking-widest mb-1" style="color:#999">Diagnóstico de cardápio</p>
+        <h1 class="text-2xl font-black leading-tight" style="color:#111">${analise.estabelecimento}</h1>
+        <p class="text-xs mt-1 truncate" style="color:#bbb">${urlCardapio}</p>
+      </div>
+
+      <!-- Mockup de celular com o cardápio -->
+      ${screenshotFull ? `
+      <div class="fade-up">
+        <p class="text-xs uppercase tracking-widest mb-1" style="color:#aaa">Cardápio analisado</p>
+        <p class="text-base font-black mb-4" style="color:#111">Esse é o cardápio que a gente analisou.</p>
+        <div style="display:flex;justify-content:center">
+          <div style="position:relative;width:260px;background:#0a0a0a;border-radius:44px;border:2px solid #2a2a2a;box-shadow:0 0 0 1px #111,0 24px 60px rgba(0,0,0,0.7),inset 0 0 0 1px #333;padding:14px 10px 20px">
+            <div style="display:flex;justify-content:center;margin-bottom:8px">
+              <div style="width:90px;height:22px;background:#000;border-radius:0 0 16px 16px;display:flex;align-items:center;justify-content:center;gap:6px">
+                <div style="width:8px;height:8px;background:#1a1a1a;border-radius:50%;border:1px solid #333"></div>
+                <div style="width:40px;height:5px;background:#1a1a1a;border-radius:999px"></div>
+              </div>
+            </div>
+            <div style="border-radius:20px;overflow:hidden;height:520px;overflow-y:scroll;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+              ${screenshotFull === 'PREVIEW'
+                ? `<div style="width:100%;height:100%;background:linear-gradient(180deg,#e8f5ec 0%,#f5f5f5 30%,#fff 100%);display:flex;flex-direction:column;align-items:center;padding:20px 12px;gap:10px">
+                    <div style="width:100%;height:80px;background:#b8e8c4;border-radius:12px;display:flex;align-items:center;justify-content:center"><p style="font-size:10px;font-weight:700;color:#16a34a">Foto do restaurante</p></div>
+                    ${[1,2,3,4,5,6].map(n=>`<div style="width:100%;height:60px;background:#f0f0f0;border-radius:10px;display:flex;align-items:center;gap:8px;padding:0 10px"><div style="width:44px;height:44px;background:#ddd;border-radius:8px;flex-shrink:0"></div><div style="flex:1"><div style="height:10px;background:#e0e0e0;border-radius:4px;width:70%;margin-bottom:5px"></div><div style="height:8px;background:#e8e8e8;border-radius:4px;width:40%"></div></div></div>`).join('')}
+                  </div>`
+                : `<img src="data:image/jpeg;base64,${screenshotFull}" style="width:100%;display:block"/>`
+              }
+            </div>
+            <div style="display:flex;justify-content:center;margin-top:10px">
+              <div style="width:80px;height:4px;background:#2a2a2a;border-radius:999px"></div>
+            </div>
+            <div style="position:absolute;left:-4px;top:90px;width:3px;height:28px;background:#1e1e1e;border-radius:2px 0 0 2px"></div>
+            <div style="position:absolute;left:-4px;top:128px;width:3px;height:44px;background:#1e1e1e;border-radius:2px 0 0 2px"></div>
+            <div style="position:absolute;left:-4px;top:182px;width:3px;height:44px;background:#1e1e1e;border-radius:2px 0 0 2px"></div>
+            <div style="position:absolute;right:-4px;top:130px;width:3px;height:60px;background:#1e1e1e;border-radius:0 2px 2px 0"></div>
+          </div>
+        </div>
+      </div>` : ''}
+
+      <!-- Score hero -->
+      <div class="fade-up">
+        <div class="flex items-end gap-4 mb-4">
+          <div>
+            <span style="font-size:72px;font-weight:900;color:${cor(analise.score_geral/10)};line-height:1">${analise.score_geral}</span>
+            <span style="font-size:18px;color:#ccc;font-weight:400">/100</span>
+          </div>
+          <div style="padding-bottom:10px">
+            <p class="font-black text-base" style="color:#111">${analise.classificacao}</p>
+            <p class="text-xs" style="color:#999">score geral do cardápio</p>
+          </div>
+        </div>
+        <p class="text-sm leading-relaxed" style="color:#555;border-left:3px solid ${cor(analise.score_geral/10)};padding-left:12px">${analise.primeiras_impressoes}</p>
+
+        <!-- Strip de dados -->
+        <div class="grid grid-cols-3 gap-3 mt-5">
+          <div style="text-align:center;padding:12px 8px;background:#f8f8f8;border-radius:12px">
+            <p style="font-size:20px;font-weight:900;color:#111;line-height:1">${analise.total_produtos || 0}</p>
+            <p style="font-size:10px;color:#888;margin-top:3px">produtos</p>
+          </div>
+          <div style="text-align:center;padding:12px 8px;background:#fef2f2;border-radius:12px">
+            <p style="font-size:20px;font-weight:900;color:#dc2626;line-height:1">${analise.produtos_sem_foto || 0}</p>
+            <p style="font-size:10px;color:#dc2626;margin-top:3px">sem foto</p>
+          </div>
+          <div style="text-align:center;padding:12px 8px;background:#f8f8f8;border-radius:12px">
+            <p style="font-size:20px;font-weight:900;color:#111;line-height:1">${analise.total_categorias || 0}</p>
+            <p style="font-size:10px;color:#888;margin-top:3px">categorias</p>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- TABELA EXCEL -->
+      ${produtos.length > 0 ? `
+      <div class="fade-up rounded-2xl overflow-hidden" style="border:1px solid #e5e5e5">
+        <div class="px-5 py-4" style="background:#e8f5ec;border-bottom:1px solid #b8e8c4">
+          <p class="text-sm font-black" style="color:var(--mint-dark)">Tabela de produtos — visão geral</p>
+          <p class="text-xs mt-0.5" style="color:#4a9e64;font-size:11px">${produtos.length} produtos analisados</p>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:11px;min-width:580px">
+            <thead>
+              <tr style="background:#f5f5f5;border-bottom:1px solid #e5e5e5">
+                <th style="text-align:left;padding:10px 12px;color:#555;font-weight:600;white-space:nowrap">Produto</th>
+                <th style="text-align:center;padding:10px 8px;color:#555;font-weight:600;white-space:nowrap">Preço atual</th>
+                <th style="text-align:center;padding:10px 8px;color:#555;font-weight:600;white-space:nowrap">Preço sugerido</th>
+                <th style="text-align:center;padding:10px 8px;color:#555;font-weight:600;white-space:nowrap">Concorrência</th>
+                <th style="text-align:center;padding:10px 8px;color:#555;font-weight:600;white-space:nowrap">Score</th>
+                <th style="text-align:center;padding:10px 8px;color:#555;font-weight:600;white-space:nowrap">Posição</th>
+                <th style="text-align:center;padding:10px 8px;color:#555;font-weight:600;white-space:nowrap">Foto</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${produtos.map((p, i) => `
+                <tr style="border-bottom:1px solid #f0f0f0;background:${i%2===0?'#fff':'#fafafa'};cursor:pointer" onclick="toggleProduto(${i})">
+                  <td style="padding:10px 12px;max-width:160px">
+                    <p style="font-weight:600;color:#111;line-height:1.3;font-size:11px">${p.nome_atual}</p>
+                    <p style="color:#444;font-size:10px;margin-top:2px">${p.categoria || ''}</p>
+                  </td>
+                  <td style="padding:10px 8px;text-align:center;font-weight:700;color:#111;white-space:nowrap">${p.preco_atual}</td>
+                  <td style="padding:10px 8px;text-align:center;font-weight:700;color:#16a34a;white-space:nowrap">${p.preco_sugerido}</td>
+                  <td style="padding:10px 8px;text-align:center;color:#666;white-space:nowrap;font-size:10px">${p.preco_concorrencia_min} – ${p.preco_concorrencia_max}</td>
+                  <td style="padding:10px 8px;text-align:center">
+                    <span style="font-weight:800;color:${cor(p.score_produto)}">${p.score_produto}</span>
+                  </td>
+                  <td style="padding:10px 8px;text-align:center">${posTag(p.posicionamento)}</td>
+                  <td style="padding:10px 8px;text-align:center;font-size:13px">${p.tem_foto ? '<span style="color:#34d399">✓</span>' : '<span style="color:#f87171">✗</span>'}</td>
+                </tr>
+                <tr id="prod-detail-${i}" style="display:none;background:#f0faf2;border-bottom:2px solid #b8e8c4">
+                  <td colspan="7" style="padding:0">
+                    <div style="padding:16px 14px">
+                      <!-- Sub-scores -->
+                      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+                        ${[['Nome',p.score_nome],['Descrição',p.score_descricao],['Foto',p.score_foto],['Preço',p.score_preco]].map(([l,s])=>`
+                          <div style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+                            <div style="font-size:18px;font-weight:900;color:${cor10(s)}">${s}</div>
+                            <div style="font-size:10px;color:#555;margin-top:2px">${l}</div>
+                          </div>
+                        `).join('')}
+                      </div>
+                      <!-- Nome atual vs sugerido -->
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px">
+                          <p style="font-size:9px;color:#dc2626;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Nome atual</p>
+                          <p style="font-size:12px;color:#555;font-weight:600">${p.nome_atual}</p>
+                        </div>
+                        <div style="background:#e8f5ec;border:1px solid #b8e8c4;border-radius:10px;padding:12px">
+                          <p style="font-size:9px;color:#16a34a;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Nome sugerido</p>
+                          <p style="font-size:12px;color:#16a34a;font-weight:600">${p.nome_sugerido}</p>
+                        </div>
+                      </div>
+                      <!-- Descrição atual vs sugerida -->
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px">
+                          <p style="font-size:9px;color:#dc2626;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Descrição atual</p>
+                          <p style="font-size:11px;color:#666;line-height:1.5">${p.descricao_atual || '—'}</p>
+                        </div>
+                        <div style="background:#e8f5ec;border:1px solid #b8e8c4;border-radius:10px;padding:12px">
+                          <p style="font-size:9px;color:#16a34a;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Descrição sugerida</p>
+                          <p style="font-size:11px;color:#16a34a;line-height:1.5">${p.descricao_sugerida}</p>
+                        </div>
+                      </div>
+                      <!-- Problemas + Melhorias -->
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+                        <div>
+                          <p style="font-size:9px;color:#f87171;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Problemas</p>
+                          ${(p.problemas||[]).map(x=>`<p style="font-size:11px;color:#f87171;margin-bottom:4px;display:flex;gap:4px"><span>—</span><span>${x}</span></p>`).join('')}
+                        </div>
+                        <div>
+                          <p style="font-size:9px;color:#34d399;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Melhorias</p>
+                          ${(p.melhorias||[]).map(x=>`<p style="font-size:11px;color:#34d399;margin-bottom:4px;display:flex;gap:4px"><span>✓</span><span>${x}</span></p>`).join('')}
+                        </div>
+                      </div>
+                      <!-- Impacto financeiro -->
+                      ${p.impacto_financeiro ? `
+                      <div style="background:#e8f5ec;border:1px solid #b8e8c4;border-radius:10px;padding:12px">
+                        <p style="font-size:9px;color:var(--mint-dark);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Impacto financeiro estimado</p>
+                        <p style="font-size:12px;color:#16a34a;font-weight:600">${p.impacto_financeiro}</p>
+                      </div>` : ''}
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div style="padding:10px 14px;background:#f8f8f8;border-top:1px solid #e5e5e5">
+          <p style="font-size:10px;color:#999">Toque em qualquer linha para expandir a análise detalhada do produto</p>
+        </div>
+      </div>` : ''}
+
+      <!-- INTELIGÊNCIA DE MERCADO -->
+      ${analise.analise_concorrencia ? `
+      <div class="fade-up" style="border-top:1px solid #eee;padding-top:24px">
+
+        <!-- Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div>
+            <p class="text-xs uppercase tracking-widest mb-0.5" style="color:#bbb">Sistema Pling</p>
+            <p class="font-black text-base" style="color:#111">Inteligência de mercado</p>
+          </div>
+          <span style="background:#111;color:var(--mint);font-size:9px;font-weight:800;padding:4px 10px;border-radius:999px;letter-spacing:1px;white-space:nowrap">SISTEMA PLING</span>
+        </div>
+
+        <!-- Comparação: seu ticket vs mercado -->
+        ${analise.analise_concorrencia.preco_medio_mercado && analise.faixa_preco?.medio ? `
+        <div style="background:#f8f8f8;border-radius:16px;padding:16px;margin-bottom:16px">
+          <p style="font-size:10px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px">Seu ticket vs mercado</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div style="background:#fff;border-radius:12px;padding:12px;text-align:center;border:1px solid #e5e5e5">
+              <p style="font-size:22px;font-weight:900;color:#111;line-height:1">${analise.faixa_preco.medio}</p>
+              <p style="font-size:10px;color:#999;margin-top:4px">seu ticket médio</p>
+            </div>
+            <div style="background:#111;border-radius:12px;padding:12px;text-align:center">
+              <p style="font-size:22px;font-weight:900;color:var(--mint);line-height:1">${analise.analise_concorrencia.preco_medio_mercado}</p>
+              <p style="font-size:10px;color:#555;margin-top:4px">ticket do mercado</p>
+            </div>
+          </div>
+        </div>` : ''}
+
+        <!-- Resumo -->
+        <p style="font-size:13px;color:#555;line-height:1.7;margin-bottom:20px">${analise.analise_concorrencia.resumo || ''}</p>
+
+        <!-- Oportunidades + Riscos lado a lado -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          ${(analise.analise_concorrencia.oportunidades||[]).length > 0 ? `
+          <div>
+            <p style="font-size:10px;font-weight:800;color:#16a34a;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Onde ganhar</p>
+            ${analise.analise_concorrencia.oportunidades.map(o=>`
+              <div style="margin-bottom:8px;padding-left:10px;border-left:2px solid #b8e8c4">
+                <p style="font-size:11px;color:#555;line-height:1.5">${o}</p>
+              </div>`).join('')}
+          </div>` : ''}
+          ${(analise.analise_concorrencia.ameacas||[]).length > 0 ? `
+          <div>
+            <p style="font-size:10px;font-weight:800;color:#dc2626;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Riscos</p>
+            ${analise.analise_concorrencia.ameacas.map(a=>`
+              <div style="margin-bottom:8px;padding-left:10px;border-left:2px solid #fecaca">
+                <p style="font-size:11px;color:#555;line-height:1.5">${a}</p>
+              </div>`).join('')}
+          </div>` : ''}
+        </div>
+
+        <!-- Diferenciais -->
+        ${(analise.analise_concorrencia.diferenciais_a_explorar||[]).length > 0 ? `
+        <div style="background:#f8f8f8;border-radius:12px;padding:14px">
+          <p style="font-size:10px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Diferenciais a explorar</p>
+          ${analise.analise_concorrencia.diferenciais_a_explorar.map(d=>`
+            <div style="display:flex;gap:8px;margin-bottom:7px">
+              <span style="width:5px;height:5px;border-radius:50%;background:#d97706;flex-shrink:0;margin-top:5px"></span>
+              <p style="font-size:12px;color:#555;line-height:1.5">${d}</p>
+            </div>`).join('')}
+        </div>` : ''}
+
+      </div>` : ''}
+
+      <!-- Diagnóstico editorial -->
+      <div class="fade-up" style="border-top:1px solid #eee;padding-top:24px">
+        <p class="text-xs uppercase tracking-widest mb-5" style="color:#bbb">Diagnóstico detalhado</p>
+
+        ${[
+          ['Descrições', analise.analise_descricoes, cor10(descricoes)],
+          ['Precificação', analise.analise_precificacao, cor10(precificacao)],
+          ['Fotos', analise.analise_fotos, cor10(fotos)],
+          ['Organização', analise.analise_organizacao, cor10(organizacao)]
+        ].filter(([,v])=>v).map(([k,v,c])=>`
+          <div style="margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="width:8px;height:8px;border-radius:50%;background:${c};flex-shrink:0;display:inline-block"></span>
+              <p style="font-size:11px;font-weight:800;color:#333;text-transform:uppercase;letter-spacing:1px">${k}</p>
+            </div>
+            <p style="font-size:13px;line-height:1.7;color:#555;padding-left:16px">${v}</p>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- O que preocupa / O que funciona — layout limpo sem caixas -->
+      <div class="fade-up" style="border-top:1px solid #eee;padding-top:24px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+          <div>
+            <p style="font-size:11px;font-weight:800;color:#dc2626;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">O que preocupa</p>
+            ${(analise.pontos_fracos||[]).map(p=>`
+              <div style="margin-bottom:10px;padding-left:12px;border-left:2px solid #fecaca">
+                <p style="font-size:12px;color:#555;line-height:1.5">${p}</p>
+              </div>
+            `).join('')}
+          </div>
+          <div>
+            <p style="font-size:11px;font-weight:800;color:#16a34a;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">O que funciona</p>
+            ${(analise.pontos_fortes||[]).map(p=>`
+              <div style="margin-bottom:10px;padding-left:12px;border-left:2px solid #b8e8c4">
+                <p style="font-size:12px;color:#555;line-height:1.5">${p}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Plano de ação -->
+      <div class="fade-up" style="border-top:2px solid #111;padding-top:24px">
+        <p class="text-xs uppercase tracking-widest mb-1" style="color:#bbb">Plano de ação</p>
+        <p class="font-black text-lg mb-6" style="color:#111">O que fazer primeiro</p>
+
+        <!-- Ação 1 visível -->
+        <div style="margin-bottom:20px">
+          <div style="display:flex;gap:16px;align-items:flex-start">
+            <span style="font-size:42px;font-weight:900;color:#e5e5e5;line-height:1;flex-shrink:0">01</span>
+            <div style="padding-top:4px">
+              <p style="font-size:14px;font-weight:800;color:#111;margin-bottom:4px">${analise.acoes_prioritarias[0]?.titulo || ''}</p>
+              <p style="font-size:12px;color:#666;line-height:1.6">${analise.acoes_prioritarias[0]?.impacto || ''}</p>
+              ${analise.acoes_prioritarias[0]?.exemplo ? `<p style="font-size:11px;color:#16a34a;margin-top:6px;font-style:italic">${analise.acoes_prioritarias[0].exemplo}</p>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- Ações 2–5 com blur + CTA -->
+        <div style="position:relative">
+          <div class="blur-content">
+            ${(analise.acoes_prioritarias||[]).slice(1).map((a,i)=>`
+              <div style="margin-bottom:20px;display:flex;gap:16px;align-items:flex-start">
+                <span style="font-size:42px;font-weight:900;color:#e5e5e5;line-height:1;flex-shrink:0">0${i+2}</span>
+                <div style="padding-top:4px">
+                  <p style="font-size:14px;font-weight:800;color:#111;margin-bottom:4px">${a.titulo}</p>
+                  <p style="font-size:12px;color:#666;line-height:1.6">${a.impacto}</p>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,0.92);border-radius:12px;border:1px solid #e5e5e5">
+            <p style="font-weight:800;font-size:14px;color:#111;text-align:center;padding:0 20px">Veja o plano completo com um especialista</p>
+          </div>
+        </div>
+
+        <!-- CTA -->
+        <div style="margin-top:24px;background:#111;border-radius:16px;overflow:hidden">
+          <div style="padding:20px 20px 0">
+            <p style="font-size:10px;font-weight:700;color:#4a9e64;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Próximo passo</p>
+            <p style="font-weight:900;color:#fff;font-size:20px;line-height:1.25;margin-bottom:10px">Vamos montar um plano para você sair dos R$ 10k e chegar nos R$ 30k.</p>
+            <p style="font-size:13px;color:#666;line-height:1.7;margin-bottom:16px">Numa reunião de 30 minutos, a Pling monta com você um plano estratégico personalizado — com base nos dados do seu cardápio — para triplicar seu faturamento nos próximos 90 dias.</p>
+          </div>
+          <div style="padding:0 20px 16px">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${[
+                'Plano de ação personalizado para o seu cardápio',
+                'Estratégia de precificação para aumentar margem',
+                'Roteiro de 90 dias para triplicar o faturamento'
+              ].map(item=>`
+                <div style="display:flex;align-items:flex-start;gap:10px">
+                  <div style="width:18px;height:18px;background:rgba(184,232,196,0.12);border:1px solid rgba(184,232,196,0.25);border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="var(--mint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </div>
+                  <p style="font-size:12px;color:#888;line-height:1.5">${item}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div style="padding:0 20px 20px">
+            <button onclick="abrirCTA()" class="btn-mint w-full py-4 rounded-xl font-bold">Quero meu plano estratégico gratuito</button>
+            <p style="font-size:10px;color:#444;text-align:center;margin-top:8px">Reunião de 30 min · sem compromisso · 100% gratuito</p>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-center text-xs pb-8 mt-4" style="color:#ccc">Pling Company · Diagnóstico gerado por IA</p>
+    `;
+
+    document.getElementById('conteudo-relatorio').innerHTML = html;
+    mostrarTela('tela-relatorio');
+
+  }
+
+  function toggleProduto(i) {
+    const row = document.getElementById('prod-detail-' + i);
+    if (!row) return;
+    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+  }
+
+  function abrirCTA() {
+    window.open('https://calendly.com/plingcompany/30min', '_blank');
+  }
+
+  function novaAnalise() {
+    urlCardapio = '';
+    ['input-url','input-nome','input-whats'].forEach(id => document.getElementById(id).value = '');
+    mostrarTela('tela-landing');
+  }
+
+  function mostrarTela(id) {
+    ['tela-landing','tela-captura','tela-loading','tela-relatorio'].forEach(t => document.getElementById(t).classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+    window.scrollTo(0, 0);
+  }
+
+  // ── PREVIEW MODE ──────────────────────────────────────────────────────────
+  if (new URLSearchParams(location.search).get('preview') === '1') {
+    urlCardapio = 'https://pedido.anota.ai/loja/exemplo-restaurante';
+    mostrarRelatorio({
+      "estabelecimento": "Pastaria do Zé",
+      "score_geral": 58,
+      "classificacao": "Precisa de melhorias",
+      "scores": { "organizacao": 6, "descricoes": 4, "precificacao": 7, "fotos": 3, "nomes": 5, "adicionais": 6 },
+      "primeiras_impressoes": "O cardápio tem estrutura básica funcional, mas perde muito em descrições e fotos. A falta de imagens em 70% dos produtos reduz significativamente a taxa de conversão.",
+      "total_produtos": 24,
+      "total_categorias": 5,
+      "produtos_com_foto": 7,
+      "produtos_sem_foto": 17,
+      "faixa_preco": { "menor": "R$ 8,00", "maior": "R$ 52,00", "medio": "R$ 24,50" },
+      "categorias": ["Pastéis", "Combos", "Bebidas", "Sobremesas", "Adicionais"],
+      "analise_produtos": [
+        { "nome_atual": "Pastel de Carne", "preco_atual": "R$ 12,00", "preco_sugerido": "R$ 14,90", "preco_concorrencia_min": "R$ 11,00", "preco_concorrencia_max": "R$ 16,00", "tem_foto": true, "categoria": "Pastéis", "score_nome": 5, "score_descricao": 3, "score_foto": 8, "score_preco": 6, "score_produto": 55, "nome_sugerido": "Pastel de Carne Artesanal", "descricao_atual": "Pastel com carne moída", "descricao_sugerida": "Pastelão crocante recheado com carne bovina temperada na brasa, alho, cebola e cheiro-verde. Massa fina e dourada, feita na hora.", "problemas": ["Descrição genérica e sem apelo", "Preço abaixo do mercado"], "melhorias": ["Adicionar ingredientes na descrição", "Reajustar preço para R$ 14,90"], "impacto_financeiro": "Aumento de R$ 2,90 por unidade pode gerar +R$ 870/mês (estimado 300 vendas/mês)", "posicionamento": "Abaixo da média" },
+        { "nome_atual": "Combo Família", "preco_atual": "R$ 45,00", "preco_sugerido": "R$ 49,90", "preco_concorrencia_min": "R$ 42,00", "preco_concorrencia_max": "R$ 55,00", "tem_foto": false, "categoria": "Combos", "score_nome": 5, "score_descricao": 2, "score_foto": 0, "score_preco": 7, "score_produto": 48, "nome_sugerido": "Combo Família Completo (4 pastéis + 2 sucos)", "descricao_atual": "—", "descricao_sugerida": "4 pastéis à sua escolha + 2 sucos naturais 500ml. Ideal para família de 4 pessoas. Economia de R$ 12 comparado ao avulso.", "problemas": ["Sem foto — item caro sem visual perde muito", "Nome não deixa claro o que vem", "Sem descrição"], "melhorias": ["Adicionar foto do combo montado", "Descrever o conteúdo completo", "Destacar a economia"], "impacto_financeiro": "Foto + descrição podem aumentar pedidos em 40%, gerando +R$ 1.800/mês", "posicionamento": "Na média" },
+        { "nome_atual": "Suco de Laranja", "preco_atual": "R$ 8,00", "preco_sugerido": "R$ 9,90", "preco_concorrencia_min": "R$ 8,00", "preco_concorrencia_max": "R$ 12,00", "tem_foto": false, "categoria": "Bebidas", "score_nome": 6, "score_descricao": 2, "score_foto": 0, "score_preco": 5, "score_produto": 43, "nome_sugerido": "Suco de Laranja Natural 500ml", "descricao_atual": "—", "descricao_sugerida": "Suco de laranja espremido na hora, sem adição de açúcar. 500ml gelado.", "problemas": ["Sem tamanho no nome", "Sem descrição", "Preço levemente abaixo"], "melhorias": ["Adicionar '500ml' no nome", "Mencionar 'espremido na hora'"], "impacto_financeiro": "Reajuste de R$ 1,90 com nova descrição pode gerar +R$ 380/mês", "posicionamento": "Abaixo da média" },
+        { "nome_atual": "Pastel de Queijo", "preco_atual": "R$ 11,00", "preco_sugerido": "R$ 13,90", "preco_concorrencia_min": "R$ 10,00", "preco_concorrencia_max": "R$ 15,00", "tem_foto": true, "categoria": "Pastéis", "score_nome": 5, "score_descricao": 3, "score_foto": 8, "score_preco": 5, "score_produto": 52, "nome_sugerido": "Pastel de Queijo Mussarela Derretido", "descricao_atual": "Pastel com queijo", "descricao_sugerida": "Pastel crocante recheado com generosa camada de mussarela fresca derretida. Massa dourada e levemente salgada.", "problemas": ["Nome sem diferencial", "Descrição muito básica", "Preço abaixo do mercado"], "melhorias": ["Especificar tipo de queijo", "Usar palavras sensoriais"], "impacto_financeiro": "Ajuste de nome + descrição pode elevar conversão em 25%", "posicionamento": "Abaixo da média" },
+        { "nome_atual": "Pastel de Frango", "preco_atual": "R$ 13,00", "preco_sugerido": "R$ 15,90", "preco_concorrencia_min": "R$ 12,00", "preco_concorrencia_max": "R$ 17,00", "tem_foto": true, "categoria": "Pastéis", "score_nome": 5, "score_descricao": 4, "score_foto": 8, "score_preco": 6, "score_produto": 57, "nome_sugerido": "Pastel de Frango com Requeijão", "descricao_atual": "Frango desfiado com requeijão", "descricao_sugerida": "Frango desfiado temperado com ervas, catupiry cremoso e cebola caramelizada em massa artesanal dourada na hora.", "problemas": ["Nome genérico", "Descrição curta"], "melhorias": ["Destacar o catupiry/requeijão no nome", "Ampliar a descrição com sensoriais"], "impacto_financeiro": "Melhoria no nome pode aumentar cliques em 30%", "posicionamento": "Na média" }
+      ],
+      "analise_concorrencia": {
+        "resumo": "Restaurantes similares na região faturam em média R$ 35k/mês com ticket médio de R$ 27. Seu ticket atual de R$ 24,50 está abaixo — há espaço claro para reposicionamento de preços sem perda de volume.",
+        "preco_medio_mercado": "R$ 27,00",
+        "oportunidades": ["Preços 15–20% abaixo do mercado permitem reajuste sem perda de clientes", "Combos familiares têm demanda crescente aos finais de semana", "Pastéis gourmet faturam até 40% a mais que os tradicionais na região"],
+        "ameacas": ["3 concorrentes diretos com cardápio visual completo (100% de fotos)", "Plataforma de delivery favorece itens com foto na busca orgânica", "Sem foto, seus produtos aparecem por último nos resultados"],
+        "diferenciais_a_explorar": ["Única pastelaria com combo família na faixa de R$ 45–50", "Variedade de 24 produtos é acima da média regional (18 produtos)", "Preço competitivo pode ser usado como argumento de valor percebido"]
+      },
+      "pontos_fortes": ["Variedade acima da média com 5 categorias bem definidas", "Preços competitivos — margem para reajuste sem churn", "Combos já criados — base para aumentar ticket médio"],
+      "pontos_fracos": ["71% dos produtos sem foto — maior problema de conversão", "Descrições genéricas sem apelo emocional ou sensorial", "Nome dos produtos não comunica diferenciais ou ingredientes"],
+      "acoes_prioritarias": [
+        { "titulo": "Fotografar os 10 produtos mais vendidos", "impacto": "Produtos com foto convertem 3x mais. Fotos nos top 10 podem aumentar faturamento em R$ 3–5k/mês", "exemplo": "Pastel de Carne, Combo Família e Pastel de Frango são prioridade 1" },
+        { "titulo": "Reajustar preços em R$ 2–3 nos pastéis", "impacto": "Todos os pastéis estão abaixo da média regional. Reajuste de R$ 2 em 8 pastéis gera +R$ 1.600/mês (200 vendas/mês cada)", "exemplo": "Pastel de Carne: R$ 12 → R$ 14,90 | Pastel de Queijo: R$ 11 → R$ 13,90" },
+        { "titulo": "Reescrever descrições com linguagem sensorial", "impacto": "Descrições persuasivas aumentam conversão em 20–35% sem custo adicional", "exemplo": "Trocar 'Pastel com carne moída' por 'Carne bovina temperada na brasa, alho e cheiro-verde em massa crocante feita na hora'" },
+        { "titulo": "Criar combo 'Pastel + Suco' com desconto visível", "impacto": "Combos aumentam ticket médio em 40%. Meta: ticket de R$ 24,50 para R$ 34", "exemplo": "Pastel + Suco Natural por R$ 19,90 (vs R$ 21 avulso) — destaque na vitrine" },
+        { "titulo": "Adicionar tamanho/quantidade nos nomes dos produtos", "impacto": "Clareza reduz dúvidas e aumenta confiança na compra — impacto direto na conversão", "exemplo": "Suco de Laranja → Suco de Laranja Natural 500ml | Combo Família → Combo Família (4 pastéis + 2 sucos)" }
+      ],
+      "analise_descricoes": "Das 24 descrições analisadas, apenas 5 têm texto além do básico. A maioria usa frases de 2–4 palavras que não comunicam valor, textura, sabor ou benefício. Restaurantes com descrições sensoriais completas convertem até 35% mais no delivery.",
+      "analise_precificacao": "Os preços estão consistentemente 12–18% abaixo do praticado por concorrentes diretos na mesma região. Isso representa oportunidade de reajuste gradual sem impacto negativo no volume, especialmente combinado com melhoria nas fotos e descrições.",
+      "analise_fotos": "Apenas 7 dos 24 produtos (29%) têm foto. Plataformas de delivery priorizam na busca produtos com imagem. Sem foto, o produto tem até 70% menos cliques. O investimento em um dia de fotografia pode gerar retorno em 30–60 dias.",
+      "analise_organizacao": "As 5 categorias estão bem nomeadas e a sequência (Pastéis → Combos → Bebidas → Sobremesas → Adicionais) segue o padrão recomendado. Sugestão: mover Combos para o início — itens de maior valor devem aparecer primeiro."
+    }, 'PREVIEW');
+  }
+</script>
+</body>
+</html>
