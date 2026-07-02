@@ -72,10 +72,12 @@ async function fecharModais(page) {
     });
 
     // Restaura scroll
-    document.body.style.overflow = 'auto';
-    document.body.style.overflowY = 'auto';
-    document.body.style.paddingRight = '0';
-    document.documentElement.style.overflow = 'auto';
+    if (document.body) {
+      document.body.style.overflow = 'auto';
+      document.body.style.overflowY = 'auto';
+      document.body.style.paddingRight = '0';
+    }
+    if (document.documentElement) document.documentElement.style.overflow = 'auto';
   });
 
   await new Promise(r => setTimeout(r, 600));
@@ -113,17 +115,16 @@ async function capturarCardapio(url) {
   });
 
   // SPAs (iFood, cardápios modernos) nunca ficam "networkidle" por causa de tracking/websocket.
-  // Carrega no domcontentloaded e depois espera o conteúdo real (preços) aparecer no DOM.
+  // 'commit' dispara assim que a navegação é aceita; depois esperamos o conteúdo real aparecer.
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 40000 });
+    await page.goto(url, { waitUntil: 'commit', timeout: 30000 });
   } catch (e) {
-    // Segue mesmo se o load não completar; o conteúdo pode já estar presente
     console.warn(`⚠️  goto não completou (${e.message}), seguindo com o que carregou`);
   }
   // Espera aparecer preço no DOM (produtos renderizados) ou segue após timeout
   await page.waitForFunction(
-    () => /R\$\s*\d/.test(document.body.innerText || ''),
-    { timeout: 20000 }
+    () => /R\$\s*\d/.test((document.body && document.body.innerText) || ''),
+    { timeout: 30000 }
   ).catch(() => {});
   await new Promise(r => setTimeout(r, 3500));
 
@@ -293,7 +294,7 @@ async function capturarCardapio(url) {
 
   // Volta pro topo
   await page.evaluate((container) => {
-    if (container === 'root') document.getElementById('root').scrollTop = 0;
+    if (container === 'root') { const r = document.getElementById('root'); if (r) r.scrollTop = 0; }
     window.scrollTo(0, 0);
   }, scrollContainer);
   await new Promise(r => setTimeout(r, 600));
@@ -322,8 +323,8 @@ async function capturarCardapio(url) {
      '[class*="DialogOverlay"]','[class*="ModalOverlay"]'].forEach(sel => {
       document.querySelectorAll(sel).forEach(el => el.remove());
     });
-    document.body.style.overflow = 'auto';
-    document.documentElement.style.overflow = 'auto';
+    if (document.body) document.body.style.overflow = 'auto';
+    if (document.documentElement) document.documentElement.style.overflow = 'auto';
   });
   await new Promise(r => setTimeout(r, 300));
 
