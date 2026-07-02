@@ -160,21 +160,30 @@ async function capturarCardapio(url) {
     ));
   });
 
-  // Extrai texto dos produtos + detecta fotos direto no DOM
+  // Extrai produtos estruturados (nome, preço, descrição, foto) + categorias direto do DOM
   const dadosProdutos = await page.evaluate(() => {
     const textoCompleto = document.body.innerText;
     const produtosMap = new Map();
 
+    // Detecta categorias (headings de seção do cardápio)
+    const categoriasSet = new Set();
+    document.querySelectorAll('h1,h2,h3,h4,[class*="category" i],[class*="section-title" i],[class*="sectionTitle" i]').forEach(h => {
+      const t = (h.innerText || '').trim();
+      if (t && t.length >= 3 && t.length < 45 && !/R\$/.test(t) && !/^\d/.test(t)) {
+        categoriasSet.add(t);
+      }
+    });
+
     document.querySelectorAll('*').forEach(el => {
       const texto = el.innerText || '';
       if (texto.match(/R\$\s*\d+[,\.]\d{2}/) && texto.length < 500) {
-        const linhas = texto.split('\n').filter(l => l.trim());
+        const linhas = texto.split('\n').map(l => l.trim()).filter(Boolean);
         if (linhas.length < 2) return;
         const chave = texto.trim().slice(0, 300);
         if (produtosMap.has(chave)) return;
 
-        // Verifica se este container de produto tem imagem real (não ícone/logo)
-        // Verifica <img> tags
+        // --- Detecção de foto ---
+        // <img> tags
         const imgs = el.querySelectorAll('img');
         const temFotoImg = [...imgs].some(img => {
           const src = img.src || img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
@@ -189,7 +198,7 @@ async function capturarCardapio(url) {
                             !src.toLowerCase().includes('placeholder');
           return grande && naoEhLogo;
         });
-        // Verifica background-image via CSS (iFood e outros usam isso para foto do produto)
+        // background-image via CSS (iFood e outros usam isso para a foto do produto)
         const temFotoBg = !temFotoImg && [...el.querySelectorAll('*')].some(child => {
           try {
             const bg = window.getComputedStyle(child).backgroundImage;
@@ -208,20 +217,37 @@ async function capturarCardapio(url) {
         });
         const temFoto = temFotoImg || temFotoBg;
 
-        produtosMap.set(chave, temFoto);
+        // --- Parse nome / preço / descrição a partir das linhas ---
+        const ehPreco = (l) => /R\$\s*\d+[,\.]\d{2}/.test(l);
+        const ehRuido = (l) => /^\d+([,\.]\d+)?%?$/.test(l) ||        // número/rating solto
+                               /^[\d,\.]+\s*(km|min|R\$)?$/i.test(l) || // distância/tempo
+                               /^(adicionar|ver mais|esgotado|indispon)/i.test(l);
+        const precoLinha = linhas.find(ehPreco) || '';
+        const precoMatch = precoLinha.match(/R\$\s*(\d{1,4}(?:\.\d{3})*[,\.]\d{2})/);
+        const preco = precoMatch ? 'R$ ' + precoMatch[1] : '';
+        const precoNum = precoMatch ? parseFloat(precoMatch[1].replace(/\./g, '').replace(',', '.')) : 0;
+        // Nome: primeira linha que não é preço nem ruído
+        const nome = (linhas.find(l => !ehPreco(l) && !ehRuido(l) && l.length >= 2) || linhas[0]).slice(0, 90);
+        // Descrição: linha mais longa (>=20 chars) que não seja nome nem preço
+        const descricao = (linhas
+          .filter(l => l !== nome && !ehPreco(l) && !ehRuido(l) && l.length >= 20)
+          .sort((a, b) => b.length - a.length)[0] || '').slice(0, 220);
+
+        produtosMap.set(chave, { nome, preco, precoNum, descricao, temFoto });
       }
     });
 
-    const produtosArray = [...produtosMap.entries()].slice(0, 500);
-    const totalComFoto = produtosArray.filter(([, f]) => f).length;
+    const produtos = [...produtosMap.values()].slice(0, 500);
+    const totalComFoto = produtos.filter(p => p.temFoto).length;
 
     return {
       textoCompleto: textoCompleto.slice(0, 40000),
-      produtos: produtosArray.map(([t]) => t),
+      produtos,
+      categorias: [...categoriasSet].slice(0, 40),
       produtosComFoto: totalComFoto,
-      produtosSemFoto: produtosArray.length - totalComFoto,
-      totalDetectados: produtosArray.length,
-      detalheFotos: produtosArray.map(([texto, temFoto]) => ({ texto: texto.slice(0, 80), temFoto })),
+      produtosSemFoto: produtos.length - totalComFoto,
+      totalDetectados: produtos.length,
+      detalheFotos: produtos.map(p => ({ texto: p.nome, temFoto: p.temFoto })),
     };
   });
 
