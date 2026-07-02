@@ -2,79 +2,210 @@ const OpenAI = require('openai');
 
 // Provider de LLM configurável por variáveis de ambiente.
 // Funciona com qualquer API compatível com OpenAI: OpenRouter, Gemini (endpoint OpenAI-compat), OpenAI, etc.
-// Basta setar LLM_BASE_URL, LLM_MODEL e LLM_API_KEY (no Railway, não no .env do repo).
+// Basta setar LLM_BASE_URL, LLM_MODEL e LLM_API_KEY (no ambiente, não no .env do repo).
 const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://api.groq.com/openai/v1';
 const LLM_MODEL    = process.env.LLM_MODEL    || 'meta-llama/llama-4-scout-17b-16e-instruct';
 const LLM_API_KEY  = process.env.LLM_API_KEY || process.env.GROQ_API_KEY || process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
 
 const defaultHeaders = LLM_BASE_URL.includes('openrouter')
-  ? { 'HTTP-Referer': 'https://produto-isca-cardapio.pages.dev', 'X-Title': 'Isca Cardapio' }
+  ? { 'HTTP-Referer': 'https://isca-cardapio-backend.onrender.com', 'X-Title': 'Isca Cardapio' }
   : undefined;
 
 const client = new OpenAI({ apiKey: LLM_API_KEY, baseURL: LLM_BASE_URL, defaultHeaders });
 
-function buildPrompt(dadosProdutos) {
-  const fotoInfo = dadosProdutos.detalheFotos
-    ? `\nDETECÇÃO DE FOTOS (extraído direto do HTML — use estes dados para o campo tem_foto, NÃO tente adivinhar pelas imagens):\nTotal de produtos detectados: ${dadosProdutos.totalDetectados}\nProdutos COM foto: ${dadosProdutos.produtosComFoto}\nProdutos SEM foto: ${dadosProdutos.produtosSemFoto}\nDetalhes por produto:\n${dadosProdutos.detalheFotos.map(p => `- "${p.texto}" → tem_foto: ${p.temFoto}`).join('\n')}`
-    : '';
+// ============================================================
+// SCORING HÍBRIDO
+// O que dá pra medir por código é medido por código (determinístico, reproduzível).
+// O LLM só julga o que é subjetivo (qualidade de nome, apetite da descrição), com rubrica travada.
+// O score geral é média ponderada calculada aqui, nunca inventada pelo modelo.
+// Escala: sub-scores 0 a 10; score_geral 0 a 100.
+// ============================================================
+
+const PESOS = { fotos: 25, descricoes: 20, precificacao: 15, organizacao: 15, nomes: 15, adicionais: 10 };
+
+const clamp10 = (n) => Math.max(0, Math.min(10, Math.round(Number(n) || 0)));
+
+function calcularMetricas(dados) {
+  const prods = Array.isArray(dados.produtos)
+    ? dados.produtos.filter(p => p && typeof p === 'object')
+    : [];
+  const total = prods.length || dados.totalDetectados || 0;
+
+  // FOTOS: % de produtos com foto (fato extraído do DOM)
+  const comFoto = typeof dados.produtosComFoto === 'number'
+    ? dados.produtosComFoto
+    : prods.filter(p => p.temFoto).length;
+  const pctFoto = total ? comFoto / total : 0;
+  const scoreFotos = clamp10(pctFoto * 10);
+
+  // DESCRIÇÕES (cobertura): % de produtos com descrição real (>= 15 chars)
+  const comDesc = prods.filter(p => p.descricao && p.descricao.length >= 15).length;
+  const pctDesc = total ? comDesc / total : 0;
+  const scoreDescCobertura = clamp10(pctDesc * 10);
+
+  // PRECIFICAÇÃO: terminação psicológica (,90 ,99 ,00 ,50) + amplitude de preço (arquitetura de âncoras)
+  const precos = prods.map(p => p.precoNum).filter(n => n > 0);
+  let scorePreco = 5;
+  let faixaPreco = null;
+  if (precos.length) {
+    // Terminação psicológica: ,90/,99/,95 puxam conversão; ,50 é neutro; ,00 é preço "preguiçoso"
+    const psico = precos.filter(n => {
+      const cent = Math.round((n % 1) * 100);
+      return cent === 90 || cent === 99 || cent === 95;
+    }).length;
+    const neutro = precos.filter(n => Math.round((n % 1) * 100) === 50).length;
+    const pctTerm = (psico + neutro * 0.5) / precos.length;
+    const min = Math.min(...precos), max = Math.max(...precos);
+    const media = precos.reduce((a, b) => a + b, 0) / precos.length;
+    const temAmplitude = precos.length > 3 && (max / min) >= 2.5; // tem entrada barata e item premium
+    scorePreco = clamp10(pctTerm * 6 + (temAmplitude ? 4 : 1.5));
+    const fmt = (n) => 'R$ ' + n.toFixed(2).replace('.', ',');
+    faixaPreco = { menor: fmt(min), maior: fmt(max), medio: fmt(media) };
+  }
+
+  // ORGANIZAÇÃO: nº de categorias e densidade média por categoria
+  const nCat = (dados.categorias || []).length;
+  const porCat = nCat ? total / nCat : total;
+  let scoreOrg = 5;
+  if (nCat >= 2) scoreOrg += 2.5;
+  if (nCat >= 4) scoreOrg += 1;
+  if (porCat >= 3 && porCat <= 15) scoreOrg += 1.5;
+  scoreOrg = clamp10(scoreOrg);
+
+  return {
+    total, comFoto, nCat,
+    scoreFotos, scoreDescCobertura, scorePreco, scoreOrg,
+    pctFoto: Math.round(pctFoto * 100),
+    pctDesc: Math.round(pctDesc * 100),
+    faixaPreco,
+  };
+}
+
+function classificar(s) {
+  if (s >= 80) return 'Cardápio de alta performance';
+  if (s >= 65) return 'Bom, com espaço para crescer';
+  if (s >= 50) return 'Mediano, precisa de ajustes';
+  if (s >= 35) return 'Precisa de atenção';
+  return 'Precisa de atenção urgente';
+}
+
+function scoreGeral(s) {
+  const soma = s.fotos * PESOS.fotos
+             + s.descricoes * PESOS.descricoes
+             + s.precificacao * PESOS.precificacao
+             + s.organizacao * PESOS.organizacao
+             + s.nomes * PESOS.nomes
+             + s.adicionais * PESOS.adicionais;
+  return Math.round(soma / 10); // sub-scores 0-10, pesos somam 100 → geral 0-100
+}
+
+// Funde a análise do LLM com as métricas determinísticas: os números viram fato,
+// o LLM só entra no que é qualitativo. O score geral é recalculado aqui.
+function mesclar(llm, metricas, dados) {
+  llm.scores = llm.scores || {};
+
+  // Determinísticos (fatos, sobrescrevem o que o LLM tenha chutado)
+  llm.scores.fotos        = metricas.scoreFotos;
+  llm.scores.precificacao = metricas.scorePreco;
+  llm.scores.organizacao  = metricas.scoreOrg;
+
+  // Descrições: cobertura (determinístico, 60%) + apetite (LLM, 40%)
+  const apetite = clamp10(llm.scores.descricoes_apetite != null ? llm.scores.descricoes_apetite : llm.scores.descricoes);
+  llm.scores.descricoes = clamp10(metricas.scoreDescCobertura * 0.6 + apetite * 0.4);
+
+  // Qualitativos (LLM, com rubrica)
+  llm.scores.nomes      = clamp10(llm.scores.nomes != null ? llm.scores.nomes : 5);
+  llm.scores.adicionais = clamp10(llm.scores.adicionais != null ? llm.scores.adicionais : 5);
+  delete llm.scores.descricoes_apetite;
+
+  // Contagens e faixa de preço = fato
+  llm.total_produtos    = metricas.total;
+  llm.total_categorias  = metricas.nCat || llm.total_categorias || 0;
+  llm.produtos_com_foto = metricas.comFoto;
+  llm.produtos_sem_foto = metricas.total - metricas.comFoto;
+  if (metricas.faixaPreco) llm.faixa_preco = metricas.faixaPreco;
+
+  // Score geral e classificação = calculados, nunca inventados
+  llm.score_geral   = scoreGeral(llm.scores);
+  llm.classificacao = classificar(llm.score_geral);
+
+  // Corrige tem_foto por produto com o dado real (match por início do nome)
+  if (Array.isArray(llm.analise_produtos) && Array.isArray(dados.produtos)) {
+    llm.analise_produtos.forEach(ap => {
+      const alvo = String(ap.nome_atual || '').toLowerCase().slice(0, 20);
+      if (!alvo) return;
+      const real = dados.produtos.find(p => p.nome && p.nome.toLowerCase().slice(0, 20) === alvo);
+      if (real) ap.tem_foto = real.temFoto;
+    });
+  }
+
+  return llm;
+}
+
+function buildPrompt(dados, metricas) {
+  const listaProdutos = (dados.produtos || [])
+    .slice(0, 60)
+    .map((p, i) => `${i + 1}. ${p.nome}${p.preco ? ' | ' + p.preco : ''}${p.temFoto ? ' | tem foto' : ' | SEM foto'}${p.descricao ? ' | desc: "' + p.descricao + '"' : ' | SEM descrição'}`)
+    .join('\n');
+
+  const catList = (dados.categorias || []).join(', ') || '(não detectadas)';
 
   return `Você é um especialista em engenharia de cardápios e estratégia de preços para restaurantes de delivery no Brasil.
 
-Analise o cardápio deste restaurante com base nas imagens e no texto extraído abaixo. Forneça uma análise detalhada e profissional com dados de mercado.
+Já medimos por código os dados objetivos deste cardápio. NÃO recalcule nada abaixo, use como VERDADE:
+- Total de produtos: ${metricas.total}
+- Categorias (${metricas.nCat}): ${catList}
+- Produtos COM foto: ${metricas.comFoto} de ${metricas.total} (${metricas.pctFoto}%)
+- Produtos COM descrição: ${metricas.pctDesc}%
+- Faixa de preço: ${metricas.faixaPreco ? `${metricas.faixaPreco.menor} a ${metricas.faixaPreco.maior} (médio ${metricas.faixaPreco.medio})` : 'não detectada'}
 
-TEXTO EXTRAÍDO DO CARDÁPIO:
-${dadosProdutos.textoCompleto.slice(0, 20000)}
-${fotoInfo}
+PRODUTOS EXTRAÍDOS:
+${listaProdutos}
 
-INSTRUÇÕES:
-- Analise pelo menos 10 produtos reais encontrados no cardápio
-- Use nomes, preços e categorias reais do cardápio
-- Use conhecimento do mercado brasileiro para estimar preços de concorrência
-- Para o campo tem_foto: use EXCLUSIVAMENTE os dados da seção "DETECÇÃO DE FOTOS" acima, não tente inferir pelas imagens
-- Seja específico e detalhado em cada análise
+TEXTO BRUTO DO CARDÁPIO (contexto):
+${(dados.textoCompleto || '').slice(0, 12000)}
 
-Retorne APENAS JSON válido (sem markdown, sem texto adicional) com esta estrutura:
+SEU TRABALHO é apenas o julgamento QUALITATIVO. Dê nota de 0 a 10 em duas dimensões, seguindo a rubrica exata:
+
+1) scores.nomes — qualidade dos NOMES dos produtos:
+   - 0 a 3: nomes genéricos ("X-Burguer", "Pizza Calabresa", "Combo 1"), sem diferenciação.
+   - 4 a 6: nomes claros mas sem apelo ("Hambúrguer Artesanal", "Pizza Margherita").
+   - 7 a 8: nomes descritivos com ingrediente-chave ("Smash Duplo com Cheddar e Bacon").
+   - 9 a 10: nomes que vendem sozinhos, com assinatura/origem/sensorial ("Smash Costela 180g ao Barbecue Defumado").
+
+2) scores.descricoes_apetite — quão APETITOSAS são as descrições existentes:
+   - 0 a 3: sem descrição ou só lista fria de ingredientes.
+   - 4 a 6: descreve o que é, mas sem gerar desejo.
+   - 7 a 8: usa linguagem sensorial (textura, sabor, preparo).
+   - 9 a 10: descrição irresistível, que dá vontade de pedir só de ler.
+
+3) scores.adicionais — de 0 a 10, o quanto o cardápio aparenta explorar adicionais/complementos/upsell (inferido pelo tipo de produto e pelo texto).
+
+Retorne APENAS JSON válido (sem markdown, sem texto fora do JSON) com esta estrutura. Os campos de nota que você NÃO deve preencher já serão calculados por nós; preencha só scores.nomes, scores.descricoes_apetite e scores.adicionais:
 
 {
-  "estabelecimento": "nome real",
-  "score_geral": 0,
-  "classificacao": "Precisa de atenção urgente",
-  "scores": {
-    "organizacao": 0,
-    "descricoes": 0,
-    "precificacao": 0,
-    "fotos": 0,
-    "nomes": 0,
-    "adicionais": 0
-  },
-  "primeiras_impressoes": "texto",
-  "total_produtos": 0,
-  "total_categorias": 0,
-  "produtos_com_foto": 0,
-  "produtos_sem_foto": 0,
-  "faixa_preco": { "menor": "R$ 0,00", "maior": "R$ 0,00", "medio": "R$ 0,00" },
-  "categorias": [],
+  "estabelecimento": "nome real do restaurante",
+  "scores": { "nomes": 0, "descricoes_apetite": 0, "adicionais": 0 },
+  "primeiras_impressoes": "2 a 3 frases sobre a impressão geral do cardápio",
+  "categorias": ${JSON.stringify((dados.categorias || []).slice(0, 20))},
   "analise_produtos": [
     {
-      "nome_atual": "nome exato",
+      "nome_atual": "nome exato do produto",
       "preco_atual": "R$ 0,00",
       "preco_sugerido": "R$ 0,00",
       "preco_concorrencia_min": "R$ 0,00",
       "preco_concorrencia_max": "R$ 0,00",
-      "tem_foto": false,
       "categoria": "categoria",
       "score_nome": 0,
       "score_descricao": 0,
-      "score_foto": 0,
-      "score_preco": 0,
       "score_produto": 0,
-      "nome_sugerido": "nome sugerido",
-      "descricao_atual": "texto ou —",
-      "descricao_sugerida": "descrição apetitosa completa",
+      "nome_sugerido": "nome melhorado que vende",
+      "descricao_atual": "descrição atual ou vazio",
+      "descricao_sugerida": "descrição apetitosa completa reescrita",
       "problemas": ["problema 1", "problema 2"],
       "melhorias": ["melhoria 1", "melhoria 2"],
       "impacto_financeiro": "estimativa de impacto",
-      "posicionamento": "Na média"
+      "posicionamento": "Abaixo da média | Na média | Acima da média"
     }
   ],
   "analise_concorrencia": {
@@ -87,17 +218,19 @@ Retorne APENAS JSON válido (sem markdown, sem texto adicional) com esta estrutu
   "pontos_fortes": ["ponto 1", "ponto 2"],
   "pontos_fracos": ["ponto 1", "ponto 2"],
   "acoes_prioritarias": [
-    {
-      "titulo": "ação",
-      "impacto": "impacto estimado",
-      "exemplo": "exemplo concreto"
-    }
+    { "titulo": "ação", "impacto": "impacto estimado", "exemplo": "exemplo concreto" }
   ],
-  "analise_descricoes": "texto",
-  "analise_precificacao": "texto",
-  "analise_fotos": "texto",
-  "analise_organizacao": "texto"
-}`;
+  "analise_descricoes": "análise textual das descrições, citando dados reais",
+  "analise_precificacao": "análise textual da precificação, citando a faixa real",
+  "analise_fotos": "análise textual sobre as fotos, citando o % real com foto",
+  "analise_organizacao": "análise textual da organização e categorias reais"
+}
+
+REGRAS:
+- Analise pelo menos 10 produtos reais na lista de analise_produtos, usando nomes e preços reais.
+- Use conhecimento do mercado brasileiro para estimar preços de concorrência.
+- Nas análises textuais, cite os números reais informados acima (% com foto, faixa de preço etc.).
+- Seja específico, direto e sem enrolação.`;
 }
 
 function extrairJSON(text) {
@@ -112,7 +245,7 @@ function extrairJSON(text) {
   try {
     return JSON.parse(match[0]);
   } catch (_) {
-    // Tenta reparar JSON truncado adicionando fechamentos
+    // Tenta reparar JSON truncado
     try {
       const reparado = match[0]
         .replace(/,\s*$/, '')
@@ -139,10 +272,10 @@ async function chamarGPT(content) {
   });
 
   const text = response.choices[0].message.content;
-  console.log(`📥 Resposta GPT: ${text.length} chars | finish: ${response.choices[0].finish_reason}`);
+  console.log(`📥 Resposta LLM: ${text.length} chars | finish: ${response.choices[0].finish_reason}`);
 
   if (text.toLowerCase().includes("i'm sorry") || text.toLowerCase().includes("i cannot") || text.toLowerCase().includes("i can't")) {
-    throw new Error('GPT_REFUSED');
+    throw new Error('LLM_REFUSED');
   }
 
   const resultado = extrairJSON(text);
@@ -155,7 +288,10 @@ async function chamarGPT(content) {
 }
 
 async function analisarCardapio({ secoes, dadosProdutos }) {
-  const prompt = buildPrompt(dadosProdutos);
+  const metricas = calcularMetricas(dadosProdutos);
+  console.log(`📊 Métricas: ${metricas.total} produtos | ${metricas.pctFoto}% com foto | ${metricas.pctDesc}% com descrição | ${metricas.nCat} categorias`);
+
+  const prompt = buildPrompt(dadosProdutos, metricas);
 
   // Tentativa 1: todas as seções com detail low
   console.log(`📤 Tentativa 1: ${secoes.length} imagens (low detail)...`);
@@ -164,7 +300,7 @@ async function analisarCardapio({ secoes, dadosProdutos }) {
       ...secoes.map(s => ({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${s}`, detail: 'low' } })),
       { type: 'text', text: prompt }
     ];
-    return await chamarGPT(content);
+    return mesclar(await chamarGPT(content), metricas, dadosProdutos);
   } catch (e) {
     console.warn(`⚠️  Tentativa 1 falhou: ${e.message}`);
   }
@@ -177,7 +313,7 @@ async function analisarCardapio({ secoes, dadosProdutos }) {
       { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${secoes[Math.floor(secoes.length / 2)]}`, detail: 'low' } },
       { type: 'text', text: prompt }
     ];
-    return await chamarGPT(content);
+    return mesclar(await chamarGPT(content), metricas, dadosProdutos);
   } catch (e) {
     console.warn(`⚠️  Tentativa 2 falhou: ${e.message}`);
   }
@@ -186,7 +322,7 @@ async function analisarCardapio({ secoes, dadosProdutos }) {
   console.log('📤 Tentativa 3: apenas texto...');
   try {
     const content = [{ type: 'text', text: prompt }];
-    return await chamarGPT(content);
+    return mesclar(await chamarGPT(content), metricas, dadosProdutos);
   } catch (e) {
     console.warn(`⚠️  Tentativa 3 falhou: ${e.message}`);
   }
@@ -194,4 +330,4 @@ async function analisarCardapio({ secoes, dadosProdutos }) {
   throw new Error('Não foi possível analisar o cardápio. Tente novamente em instantes.');
 }
 
-module.exports = { analisarCardapio };
+module.exports = { analisarCardapio, calcularMetricas, scoreGeral, classificar };
