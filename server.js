@@ -52,9 +52,12 @@ app.post('/api/analisar', async (req, res) => {
     }
   }
 
-  // Verifica se extraiu texto suficiente
+  // Verifica se extraiu texto e produtos suficientes
   if (!resultado.dadosProdutos.textoCompleto || resultado.dadosProdutos.textoCompleto.length < 50) {
     return res.status(500).json({ error: 'Não conseguimos ler o conteúdo desse cardápio. Tente com outro link.' });
+  }
+  if (!resultado.dadosProdutos.totalDetectados || resultado.dadosProdutos.totalDetectados === 0) {
+    return res.status(500).json({ error: 'Não encontramos produtos com preço nesse link. Confira se é a página do cardápio (com os itens e valores) e tente de novo.' });
   }
 
   // Análise GPT
