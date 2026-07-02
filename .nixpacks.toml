@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "nss", "nspr", "atk", "cups", "dbus", "expat", "libdrm", "libxkbcommon", "mesa", "libGL", "alsa-lib", "pango", "cairo", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "at-spi2-atk", "at-spi2-core", "glib", "gtk3", "fontconfig", "freetype", "harfbuzz"]
+
+[phases.build]
+cmds = ["npm install"]
+
+[start]
+cmd = "node server.js"
