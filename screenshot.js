@@ -115,9 +115,9 @@ async function capturarCardapio(url) {
   });
 
   // SPAs (iFood, cardápios modernos) nunca ficam "networkidle" por causa de tracking/websocket.
-  // 'commit' dispara assim que a navegação é aceita; depois esperamos o conteúdo real aparecer.
+  // 'domcontentloaded' dispara quando o HTML inicial é parseado; depois esperamos o conteúdo real.
   try {
-    await page.goto(url, { waitUntil: 'commit', timeout: 30000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   } catch (e) {
     console.warn(`⚠️  goto não completou (${e.message}), seguindo com o que carregou`);
   }
