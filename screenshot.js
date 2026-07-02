@@ -112,8 +112,20 @@ async function capturarCardapio(url) {
     'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
   });
 
-  await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
-  await new Promise(r => setTimeout(r, 4000));
+  // SPAs (iFood, cardápios modernos) nunca ficam "networkidle" por causa de tracking/websocket.
+  // Carrega no domcontentloaded e depois espera o conteúdo real (preços) aparecer no DOM.
+  try {
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 40000 });
+  } catch (e) {
+    // Segue mesmo se o load não completar; o conteúdo pode já estar presente
+    console.warn(`⚠️  goto não completou (${e.message}), seguindo com o que carregou`);
+  }
+  // Espera aparecer preço no DOM (produtos renderizados) ou segue após timeout
+  await page.waitForFunction(
+    () => /R\$\s*\d/.test(document.body.innerText || ''),
+    { timeout: 20000 }
+  ).catch(() => {});
+  await new Promise(r => setTimeout(r, 3500));
 
   // Sem manipulação de modal aqui — modal será removido logo antes do screenshot
 
