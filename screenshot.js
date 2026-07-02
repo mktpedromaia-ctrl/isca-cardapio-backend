@@ -174,30 +174,49 @@ async function capturarCardapio(url) {
         if (produtosMap.has(chave)) return;
 
         // Verifica se este container de produto tem imagem real (não ícone/logo)
+        // Verifica <img> tags
         const imgs = el.querySelectorAll('img');
-        const temFoto = [...imgs].some(img => {
-          const src = img.src || img.getAttribute('src') || img.getAttribute('data-src') || '';
-          if (!src || src.startsWith('data:image/svg')) return false;
+        const temFotoImg = [...imgs].some(img => {
+          const src = img.src || img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
+          if (!src || src.startsWith('data:image/svg') || src.startsWith('data:image/gif')) return false;
           const w = img.naturalWidth || img.width || parseInt(img.getAttribute('width') || '0');
           const h = img.naturalHeight || img.height || parseInt(img.getAttribute('height') || '0');
-          // Imagem válida: maior que 50px e não parece ser logo/banner/ícone
           const grande = (w === 0 || w > 50) && (h === 0 || h > 50);
           const naoEhLogo = !src.toLowerCase().includes('logo') &&
                             !src.toLowerCase().includes('banner') &&
                             !src.toLowerCase().includes('icon') &&
-                            !src.toLowerCase().includes('avatar');
+                            !src.toLowerCase().includes('avatar') &&
+                            !src.toLowerCase().includes('placeholder');
           return grande && naoEhLogo;
         });
+        // Verifica background-image via CSS (iFood e outros usam isso para foto do produto)
+        const temFotoBg = !temFotoImg && [...el.querySelectorAll('*')].some(child => {
+          try {
+            const bg = window.getComputedStyle(child).backgroundImage;
+            if (!bg || bg === 'none' || bg.includes('gradient')) return false;
+            const urlMatch = bg.match(/url\(["']?([^"')]+)/);
+            if (!urlMatch) return false;
+            const url = urlMatch[1];
+            const rect = child.getBoundingClientRect();
+            const grande = rect.width > 50 && rect.height > 50;
+            const naoEhLogo = !url.toLowerCase().includes('logo') &&
+                              !url.toLowerCase().includes('banner') &&
+                              !url.toLowerCase().includes('icon') &&
+                              !url.toLowerCase().includes('placeholder');
+            return grande && naoEhLogo;
+          } catch(_) { return false; }
+        });
+        const temFoto = temFotoImg || temFotoBg;
 
         produtosMap.set(chave, temFoto);
       }
     });
 
-    const produtosArray = [...produtosMap.entries()].slice(0, 30);
+    const produtosArray = [...produtosMap.entries()].slice(0, 500);
     const totalComFoto = produtosArray.filter(([, f]) => f).length;
 
     return {
-      textoCompleto: textoCompleto.slice(0, 8000),
+      textoCompleto: textoCompleto.slice(0, 40000),
       produtos: produtosArray.map(([t]) => t),
       produtosComFoto: totalComFoto,
       produtosSemFoto: produtosArray.length - totalComFoto,
