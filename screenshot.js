@@ -178,11 +178,14 @@ async function capturarCardapio(url) {
     const textoCompleto = document.body.innerText;
     const produtosMap = new Map();
 
-    // Detecta categorias (headings de seção do cardápio)
+    // Detecta categorias (headings de seção do cardápio).
+    // Conservador: só h2/h3 e classes explícitas de categoria; ignora quem tem preço,
+    // quebra de linha (é card de produto) ou texto muito longo.
     const categoriasSet = new Set();
-    document.querySelectorAll('h1,h2,h3,h4,[class*="category" i],[class*="section-title" i],[class*="sectionTitle" i]').forEach(h => {
+    document.querySelectorAll('h2,h3,[class*="category" i],[class*="categoria" i],[class*="section-title" i],[class*="sectionTitle" i]').forEach(h => {
       const t = (h.innerText || '').trim();
-      if (t && t.length >= 3 && t.length < 45 && !/R\$/.test(t) && !/^\d/.test(t)) {
+      if (t && t.length >= 3 && t.length < 40 &&
+          !/R\$/.test(t) && !/^\d/.test(t) && !t.includes('\n')) {
         categoriasSet.add(t);
       }
     });
