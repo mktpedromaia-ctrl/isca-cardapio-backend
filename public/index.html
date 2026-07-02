@@ -501,6 +501,24 @@
   let urlCardapio = '';
   let dadosLead = {};
 
+  // Anti-XSS: os textos da análise vêm de páginas de terceiros (nome de produto, etc.).
+  // Como o relatório é montado via innerHTML, todo texto é escapado antes de renderizar.
+  function escapeHtml(v) {
+    return String(v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function deepEscape(val) {
+    if (typeof val === 'string') return escapeHtml(val);
+    if (Array.isArray(val)) return val.map(deepEscape);
+    if (val && typeof val === 'object') {
+      const out = {};
+      for (const k of Object.keys(val)) out[k] = deepEscape(val[k]);
+      return out;
+    }
+    return val;
+  }
+
   function irParaCaptura() {
     const url = document.getElementById('input-url').value.trim();
     if (!url || !url.startsWith('http')) { alert('Cole uma URL válida'); return; }
@@ -575,7 +593,8 @@
       clearTimeout(fetchTimeout);
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
-      mostrarRelatorio(data.analise, data.screenshotFull || '');
+      // Escapa todo texto da análise antes de injetar no relatório (defesa contra XSS)
+      mostrarRelatorio(deepEscape(data.analise), data.screenshotFull || '');
     } catch (err) {
       clearTimeout(fetchTimeout);
       const msg = err.name === 'AbortError'
