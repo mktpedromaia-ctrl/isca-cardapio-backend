@@ -102,6 +102,11 @@ app.post('/api/analisar', async (req, res) => {
     return res.status(400).json({ error: 'URL inválida. Use o link completo do cardápio (ex: https://...)' });
   }
 
+  // Rate limit primeiro: corta abuso já na entrada, antes de qualquer trabalho
+  if (rateLimited(ip)) {
+    return res.status(429).json({ error: 'Muitas análises em pouco tempo. Aguarde alguns minutos e tente de novo.' });
+  }
+
   // ---------- Anti-SSRF: bloqueia loopback/rede interna/metadados de cloud ----------
   const seg = await validarUrlSegura(url);
   if (!seg.ok) {
@@ -115,9 +120,6 @@ app.post('/api/analisar', async (req, res) => {
     return res.status(400).json({ error: msg });
   }
 
-  if (rateLimited(ip)) {
-    return res.status(429).json({ error: 'Muitas análises em pouco tempo. Aguarde alguns minutos e tente de novo.' });
-  }
   if (emAndamento >= MAX_CONCORRENTE) {
     return res.status(503).json({ error: 'Estamos com muitas análises agora. Tente de novo em instantes.' });
   }
