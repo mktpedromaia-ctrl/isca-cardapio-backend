@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { capturarCardapio } = require('./screenshot');
 const { analisarCardapio } = require('./analyzer');
 
@@ -9,6 +10,7 @@ const PORT = process.env.PORT || 3333;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/health', (_, res) => res.json({ status: 'ok', version: '2.0.0' }));
 
@@ -58,7 +60,7 @@ app.post('/api/analisar', async (req, res) => {
   // Análise GPT
   let analise;
   try {
-    console.log('🤖 Analisando com GPT-4o...');
+    console.log('🤖 Analisando com IA...');
     analise = await analisarCardapio(resultado);
     console.log(`✅ Análise concluída: ${analise.estabelecimento}`);
   } catch (e) {
